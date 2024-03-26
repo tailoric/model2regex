@@ -1,0 +1,83 @@
+\documentclass[a4paper, 12pt]{article}
+
+% Packages
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage[backend=biber]{biblatex}
+\usepackage{ifxetex}
+
+% TUB Font
+\ifxetex
+   % Muli font
+   \usepackage{xltxtra}
+   \setmainfont{Muli}
+\else
+   % Arial font
+   \usepackage{times}
+   \renewcommand{\rmdefault}{\sfdefault}
+\fi
+\linespread{1.2}
+
+% Settings
+\graphicspath{ {images/} }
+\addbibresource{bibliography.bib}
+
+% Variables
+\newcommand{\thesistitle}{This is the Title of the Thesis with Enough Words}
+\newcommand{\thesisauthor}{John Doe}
+\newcommand{\matrno}{31337}
+\newcommand{\supervisor}{Jane \textsc{Doe}}
+
+\begin{document}
+
+\begin{titlepage}
+	\centering
+	\includegraphics[width=5cm]{tub-logo}\par\vspace{0.5cm}
+	{Technische Universität Berlin \par}
+	\vspace{2cm}
+	{\large \textsc{Exposé}\par}
+	\vspace{1cm}
+	{\Large\bfseries \thesistitle\par}
+	\vspace{2cm}
+	%\vfill
+	{\large \thesisauthor\par}
+	{\large Matr. No. \matrno\par}
+	\vspace{2cm}
+	\includegraphics[width=5cm]{mlsec-logo-red2}\par\vspace{0.5cm}
+	{Chair of Machine Learning and Security \par}
+	{Prof. Dr. Konrad Rieck \par}
+	\vfill
+	supervised by\par
+	\supervisor
+	\vfill
+	\today\par
+\end{titlepage}
+
+\section{Introduction}
+Some intro to the topic: What is it about? What is the specific problem that
+should be addressed in this work?
+
+\section{Methodology}
+What methodology will be applied in this work? That is, what is the general
+strategy to solve the problem this work is concearned with?
+
+\section{Approach}
+How is the implementation of the strategy approached?
+
+\section{Evaluation}
+How is the degree of success of the applied method measured?
+
+\section{Scope}
+What is the particular scope of your research? Which goals should be achieved?
+Which are optional and which are explicitly not part of the scope of this
+thesis?
+
+\section{Related Work}
+Describe the state of the art of the field of research. Support your statements
+with appropriate sources \cite{fardin14}.
+
+\clearpage
+
+\printbibliography
+
+\end{document}
