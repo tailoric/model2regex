@@ -80,23 +80,38 @@ which will match possible domains of that DGA.
 
 
 \section{Methodology}
-What methodology will be applied in this work? That is, what is the general
-strategy to solve the problem this work is concearned with?
+%What methodology will be applied in this work? That is, what is the general
+% strategy to solve the problem this work is concearned with?
+The main methodology of this thesis will be applied research. Using currently established solutions
+from the field of language processing. As data source of the learning process is a mix of real domains
+from domain lists and self-generated domains using reverse engineered DGAs. \cite{baderj_dga}
+The main focus of the research will be answering the two main questions. First, is it possible to
+generate Regular Expressions in this setting? Second, do these regular expressions perform as well
+as the current state of the art?
+
 
 \section{Approach}
-How is the implementation of the strategy approached?
+%How is the implementation of the strategy approached?
+This project will need three phases. First the research phase, exploring the possibilities of
+turning the internals of a language model into a regular expression. Second implementation of the
+solution, 
 
 \section{Evaluation}
-How is the degree of success of the applied method measured?
+%How is the degree of success of the applied method measured?
+We will evaluate the result of this thesis by testing how well the generated regular expressions
+will capture the learned structures of DGAs. We will compare how well these expressions will detect
+AGDs. It is imperative that however the amount of false positives (benign domains detected as AGDs)
+should be very low to not block valid connections with generated filter.
+On the first
 
 \section{Scope}
-What is the particular scope of your research? Which goals should be achieved?
-Which are optional and which are explicitly not part of the scope of this
-thesis?
+%What is the particular scope of your research? Which goals should be achieved?
+%Which are optional and which are explicitly not part of the scope of this
+%thesis?
 
 \section{Related Work}
-Describe the state of the art of the field of research. Support your statements
-with appropriate sources \cite{fardin14}.
+%Describe the state of the art of the field of research. Support your statements
+%with appropriate sources \cite{fardin14}.
 
 \clearpage
 
