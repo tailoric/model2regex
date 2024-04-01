@@ -83,11 +83,11 @@ providing a standard way to set up a filter with a RegEx.
 %What methodology will be applied in this work? That is, what is the general
 % strategy to solve the problem this work is concearned with?
 The main methodology of this thesis will be applied research. Using currently established solutions
-from the field of language processing. As data source of the learning process is a mix of real domains
-from domain lists and self-generated domains using reverse engineered DGAs. \cite{bader_baderjdomain_generation_algorithms_2024}
-The main focus of the research will be answering the two main questions. First, is it possible to
-generate Regular Expressions in this setting? Second, do these regular expressions perform as well
-as the current state of the art?
+from the field of language processing. As data source of the learning process is a mix of real
+domains \cite{noauthor_cisco_nodate} from domain lists and self-generated domains using reverse
+engineered DGAs. \cite{bader_baderjdomain_generation_algorithms_2024} The main focus of the research
+will be answering the two main questions. First, is it possible to generate Regular Expressions in
+this setting? Second, do these regular expressions perform as well as the current state of the art?
 
 
 \section{Approach}
@@ -100,14 +100,20 @@ efficient and capture the structure learned by the model. Currently the prototyp
 well on the simple banjori algorithm during training. Once the possible approaches have been
 explored I will need to implement them and do initial testing on how well they perform.  This may be
 the biggest phase of the thesis work. After implementing the model and training it, I will need to
-evaluate its performance and compare it to the state of the art \cite{yu_character_2018}
+evaluate its performance and compare it to the state of the art.
+
 \section{Evaluation}
 %How is the degree of success of the applied method measured?
-We will evaluate the result of this thesis by testing how well the generated regular expressions
-will capture the learned structures of DGAs. We will compare how well these expressions will detect
+I will evaluate the result of this thesis by testing how well the generated regular expressions
+will capture the learned structures of DGAs. I will compare how well these expressions will detect
 AGDs. It is imperative that however the amount of false positives (benign domains detected as AGDs)
-should be very low to not block valid connections with generated filter.
-On the first
+should be very low to not block valid connections with the generated filter.
+The evaluation should compare how well the generated regular expression performs compared to the
+language model and also how well it compares to other deep learning approaches shown in other
+scientific papers. It should also be evaluated how well the language model and the regular
+expression performs on different kinds of DGAs, or if it is only able to detect specific kinds. 
+The degree of success should be measured through how close the solution is performing compared to
+the state of the art \cite{yu_character_2018} and well established solutions in detection scores and false positive rates.
 
 \section{Scope}
 %What is the particular scope of your research? Which goals should be achieved?
@@ -124,6 +130,14 @@ requirement.
 \section{Related Work}
 %Describe the state of the art of the field of research. Support your statements
 %with appropriate sources \cite{fardin14}.
+The current state of the art in this field are hybrid solutions using convolutional and recurrent
+neural networks. Two promising approaches were developed by Zhang \cite{zhang_detection_2019} and
+Liu \cite{liu_detection_2020}, both utilizing SMOTE for balancing the datasets and both using the
+hybrid solution of a bidirectional LSTM and a CNN. These approaches showed high accuracy and
+f1-scores when detecting multiple DGA families at the same time, and experimented with different
+text extraction techniques.
+Rayhan \cite{rayhan_experimental_2020} also did a experimental analysis of 13 state-of-the-art
+classification techniques. 
 
 \clearpage
 
