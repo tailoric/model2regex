@@ -80,28 +80,31 @@ providing a standard way to set up a filter with a RegEx.
 
 
 \section{Methodology}
-%What methodology will be applied in this work? That is, what is the general
-% strategy to solve the problem this work is concearned with?
+%What methodology will be applied in this work? That is, what is the general strategy to solve the
+%problem this work is concearned with?
 The main methodology of this thesis will be applied research. Using currently established solutions
-from the field of language processing. As data source of the learning process is a mix of real
-domains \cite{noauthor_cisco_nodate} from domain lists and self-generated domains using reverse
-engineered DGAs. \cite{bader_baderjdomain_generation_algorithms_2024} The main focus of the research
-will be answering the two main questions. First, is it possible to generate Regular Expressions in
-this setting? Second, do these regular expressions perform as well as the current state of the art?
-
+from the field of language processing. The approach will be an iterative process of discovering
+which approaches will be the most successful. Working with a prototype which is built as a classic
+machine learning model, specifically a Gated Recurrent Unit (GRU) to learn the structure of a DGA
+and then use the information of the hidden layers and the output to build a regular expression that
+will represent the structure found by the language model. The main research will focus on exploring
+methods and the possibility of extracting a regular expression out of the specialized model. 
 
 \section{Approach}
 %How is the implementation of the strategy approached?
-I plan to split this thesis into three phases. First a research phase to expand on what I explored
-during the development of the first prototype. I need to explore what methods for regular expression
-generation can be used to extract them out of the RNN learned on the dataset. Also it should be part
-of the research to figure out how to best simplify or make the resulting regular expressions more
-efficient and capture the structure learned by the model. Currently the prototype is doing rather
-well on the simple banjori algorithm during training. Once the possible approaches have been
-explored I will need to implement them and do initial testing on how well they perform.  This may be
-the biggest phase of the thesis work. After implementing the model and training it, I will need to
-evaluate its performance and compare it to the state of the art.
-
+As mentioned before I will iteratively explore the possibilities of turning a learned model into a
+regular expression, so the beginning of the research will be working around exploring these
+possibilities and iterating on implementations. Currently a small prototype exists that can learn
+the banjori algorithm very reliably. 
+The language model will have the following architecture:\\
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{images/DGA_Detect_Architecture.png}
+    \caption{Graphic provided by Tammo Kr\"uger}
+\end{figure}\\
+The learning part is already solved and does work with a decent accuracy, the last step (3) Hunting
+is now what the main focus of the thesis will be. The majority of these 6 months I will work on this
+part and at least 2 months will be used for setting up the evaluation described and on writing down
+my results into the thesis.
 \section{Evaluation}
 %How is the degree of success of the applied method measured?
 I will evaluate the result of this thesis by testing how well the generated regular expressions
@@ -113,8 +116,17 @@ language model and also how well it compares to other deep learning approaches s
 scientific papers. It should also be evaluated how well the language model and the regular
 expression performs on different kinds of DGAs, or if it is only able to detect specific kinds. 
 The degree of success should be measured through how close the solution is performing compared to
-the state of the art \cite{yu_character_2018} and well established solutions in detection scores and false positive rates.
-
+the state of the art and well established solutions in detection scores and false positive rates.
+Specifically I will compare the language model, the state of the art and the regular expressions on
+the usual metrics used in other papers in the machine learning field. 
+I will compare the true and false positive rate (TPR/FPR), the accuracy and the F-Score. 
+Added to that I will compare the ROC curve.
+The experiment will be set up the following way:\\
+Using our training dataset all models, my own and the ones from the following paper
+\cite{yu_character_2018} will be trained. Both the language model and the character level detection models
+from Yu et al. are going to be tested on a test dataset, if possible that test dataset will be
+provided from a real world data collection. Once these tests are through the performance will be
+compared directly.
 \section{Scope}
 %What is the particular scope of your research? Which goals should be achieved?
 %Which are optional and which are explicitly not part of the scope of this
@@ -129,15 +141,18 @@ requirement.
 
 \section{Related Work}
 %Describe the state of the art of the field of research. Support your statements
-%with appropriate sources \cite{fardin14}.
-The current state of the art in this field are hybrid solutions using convolutional and recurrent
-neural networks. Two promising approaches were developed by Zhang \cite{zhang_detection_2019} and
-Liu \cite{liu_detection_2020}, both utilizing SMOTE for balancing the datasets and both using the
-hybrid solution of a bidirectional LSTM and a CNN. These approaches showed high accuracy and
-f1-scores when detecting multiple DGA families at the same time, and experimented with different
-text extraction techniques.
-Rayhan \cite{rayhan_experimental_2020} also did a experimental analysis of 13 state-of-the-art
-classification techniques. 
+%with appropriate sources.
+The current state of the art in the field are Convolutional Neural Networks and Recurrent Neural
+Networks which are also commonly used in Natural Language Processing. Yu et al.
+\cite{yu_character_2018} showed that all these approaches achieved similar accuracy and performance
+in detecting DGAs.  The paper used the Bambenek dataset for AGDs and the Alexa Dataset for benign
+domains. The models were two pure RNN based Architectures (Endgame, CMU), two CNN based
+architectures (NYU, Invincea) and one hybrid CNN/RNN based architecture (MIT). 
+In their own study Rayhan et al. \cite{rayhan_experimental_2020} also tested 13 different
+machine learning algorithms to compare how they perform in the setting of detecting the dual class
+problem of benign or malicious domains. The test was performed on uni-, bi- and trigrams of the
+domains sourced from the DGArchive, the paper shows that even some simpler approaches like K-Nearest
+Neighbor, or Support Vector Machines were able to get decent results.
 
 \clearpage
 
