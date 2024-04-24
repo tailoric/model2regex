@@ -93,19 +93,28 @@ optimizing the resulting RegEx.
 
 \section{Approach}
 %How is the implementation of the strategy approached?
-As mentioned before I will iteratively explore the possibilities of turning a learned model into a
-regular expression, so the beginning of the research will be working around exploring these
-possibilities and iterating on implementations. Currently a small prototype exists that can learn
-the banjori algorithm very reliably. 
-The language model will have the following architecture:\\
+The general architecture of the model is depicted in Figure \ref{fig:architecture}. 
 \begin{figure}[h]
     \includegraphics[width=\textwidth]{images/DGA_Detect_Architecture.png}
     \caption{Graphic provided by Tammo Kr\"uger}
+    \label{fig:architecture}
 \end{figure}\\
-The learning part is already solved and does work with a decent accuracy, the last step (3) Hunting
-is now what the main focus of the thesis will be. The majority of these 6 months I will work on this
-part and at least 2 months will be used for setting up the evaluation described and on writing down
-my results into the thesis.
+During the prototyping phase, I will use a dataset of the top 1 million domains
+\cite{noauthor_cisco_nodate} for benign data and
+generate AGDs through reverse engineered DGAs \cite{bader_baderjdomain_generation_algorithms_2024}
+as malicious data, this will be the dataset during the prototyping phase, during evaluation and
+after finalizing the thesis I will try to work with real data from the DGArchive and real data from
+network traffic to test outside of a "lab setting".~(1)\\
+Using these labels we then learn a recurrent neural network, more specifically a gated recurrent
+unit, a long short-term memory with gating mechanism. Additionally we are use the output of the
+hidden layers to feed the semantic meaning into a feed forward network to classify the input, as
+shown in Chapter 9 of the book \textit{Speech and Language Processing} by Jurafsky and Martin
+\cite{jurafsky_speech_2024}. (2)\\
+After training the language model the next step is to generate regular expressions. This will be
+done by using the distribution output by our model after classifying the domain input. The current
+idea is to use specific probability thresholds to determine what RegEx atoms will be generated for
+each position in the resulting expression. (3)
+
 \section{Evaluation}
 %How is the degree of success of the applied method measured?
 I will evaluate the result of this thesis by testing how well the generated regular expressions
