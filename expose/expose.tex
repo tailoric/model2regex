@@ -83,12 +83,13 @@ of learned DGAs.
 %What methodology will be applied in this work? That is, what is the general strategy to solve the
 %problem this work is concearned with?
 The main methodology of this thesis will be applied research. Using currently established solutions
-from the field of language processing. The approach will be an iterative process of discovering
-which approaches will be the most successful. Working with a prototype which is built as a classic
-machine learning model, specifically a Gated Recurrent Unit (GRU) to learn the structure of a DGA
-and then use the information of the hidden layers and the output to build a regular expression that
-will represent the structure found by the language model. The main research will focus on exploring
-methods and the possibility of extracting a regular expression out of the specialized model. 
+from the field of language processing, I will train a language model that learns the structure of
+DGAs and classifies them into their DGA families or into benign domain names. Once the structure has
+been learned the research will focus on if it is possible to extract information from the language
+model and turn it into a RegEx. If this is a success then the work will focus on evaluating if the
+generated RegEx can compete with the language model itself and solutions of the current state of the
+art. Again in an iterative approach of researching and testing strategies for extracting and
+optimizing the resulting RegEx.
 
 \section{Approach}
 %How is the implementation of the strategy approached?
