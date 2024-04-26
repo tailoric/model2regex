@@ -12,7 +12,7 @@
 	note = {ISSN: 2161-4407},
 	keywords = {Computer architecture, Feature extraction, cybersecurity, deep learning, domain generation algorithm, Machine learning, malware, Malware, Recurrent neural networks, text classification, Training},
 	pages = {1--8},
-	file = {IEEE Xplore Abstract Record:C\:\\Users\\erics\\Zotero\\storage\\T5NNDUBB\\8489147.html:text/html},
+	file = {IEEE Xplore Abstract Record:C\:\\Users\\erics\\Zotero\\storage\\T5NNDUBB\\8489147.html:text/html;Yu et al. - 2018 - Character Level based Detection of DGA Domain Name.pdf:C\:\\Users\\erics\\Zotero\\storage\\8AZZFS6N\\Yu et al. - 2018 - Character Level based Detection of DGA Domain Name.pdf:application/pdf},
 }
 
 @inproceedings{rudd_transformers_2022,
@@ -45,6 +45,12 @@
 	keywords = {malware, dga, domain-generation-algorithm, python, reverse-engineering},
 }
 
+@misc{dgarchive_2024,
+    title = {DGArchive},
+    author = {Frauenhofer FKIE},
+    url = {https://dgarchive.caad.fkie.fraunhofer.de/},
+    urldate = {2024-04-26}
+}
 @inproceedings{drichel_false_2023,
 	title = {False {Sense} of {Security}: {Leveraging} {XAI} to {Analyze} the {Reasoning} and {True} {Performance} of {Context}-less {DGA} {Classifiers}},
 	shorttitle = {False {Sense} of {Security}},
@@ -122,7 +128,7 @@
 	year = {2020},
 	note = {Number: 9
 Publisher: Multidisciplinary Digital Publishing Institute},
-	keywords = {algorithmically generated domain name, domain generation algorithm, recurrent convolutional neural network, SMOTE, spatial pyramid pooling},
+	keywords = {domain generation algorithm, SMOTE, algorithmically generated domain name, recurrent convolutional neural network, spatial pyramid pooling},
 	pages = {1058},
 	file = {Full Text PDF:C\:\\Users\\erics\\Zotero\\storage\\34LAL5ZU\\Liu et al. - 2020 - Detection of Algorithmically Generated Domain Name.pdf:application/pdf},
 }
@@ -153,11 +159,73 @@ Publisher: Multidisciplinary Digital Publishing Institute},
 	file = {Cisco Popularity List:C\:\\Users\\erics\\Zotero\\storage\\B37RLQL7\\index.html:text/html},
 }
 
-@book{jurafsky_speech_2024,
+@inproceedings{zhou_cnn-based_2019,
+	address = {Shenzhen, China},
+	title = {{CNN}-based {DGA} {Detection} with {High} {Coverage}},
+	copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
+	isbn = {978-1-72812-504-6},
+	url = {https://ieeexplore.ieee.org/document/8823200/},
+	doi = {10.1109/ISI.2019.8823200},
+	abstract = {Attackers often use domain generation algorithms (DGAs) to create various kinds of pseudorandom domains dynamically and select a part of them to connect with command and control servers, therefore it is important to automatically detect the algorithmically generated domains (AGDs). AGDs can be broken down into two categories: character-based domains and wordlist-based domains. Recently, methods based on machine learning and deep learning have been widely explored. However, much of the previous work perform well in detecting one kind of DGA families but poorly in classifying another kind. A general detection system which is applicable to both kinds of domains still remains a challenge. To address this problem, we propose a novel real-time detection method with high accuracy as well as high coverage. We ﬁrst convey a domain name into a sequence of word-level or character-level components, then design a deep neural network based on temporal convolutional network to extract the implicit pattern and classify the domain into two or more categories. Our experimental results demonstrate that our model outperforms state-of-the-art approaches in both binary classiﬁcation and multi-class classiﬁcation, and shows a good performance in detecting different kinds of DGAs. Besides, the high training efﬁciency of our model makes it adjust to new malicious domains quickly.},
+	language = {en},
+	urldate = {2024-04-21},
+	booktitle = {2019 {IEEE} {International} {Conference} on {Intelligence} and {Security} {Informatics} ({ISI})},
+	publisher = {IEEE},
+	author = {Zhou, Shaofang and Lin, Lanfen and Yuan, Junkun and Wang, Feng and Ling, Zhaoting and Cui, Jia},
+	month = jul,
+	year = {2019},
+	pages = {62--67},
+	file = {Zhou et al. - 2019 - CNN-based DGA Detection with High Coverage.pdf:C\:\\Users\\erics\\Zotero\\storage\\AMCWI8BL\\Zhou et al. - 2019 - CNN-based DGA Detection with High Coverage.pdf:application/pdf},
+}
+
+@inproceedings{yu_inline_2017,
+	address = {New Orleans, LA},
+	title = {Inline {DGA} {Detection} with {Deep} {Networks}},
+	isbn = {978-1-5386-3800-2},
+	url = {http://ieeexplore.ieee.org/document/8215728/},
+	doi = {10.1109/ICDMW.2017.96},
+	abstract = {Domain generation algorithms (DGAs) automatically generate large numbers of domain names in DNS domain ﬂuxing for the purpose of command-and-control (C\&C) communication. DGAs are immune to static prevention methods like blacklisting and sinkholing. Detection of DGAs in a live stream of queries in a DNS server is referred to as inline detection. Most of the previous approaches in the literature on DGA detection either: (i) are based on small synthetic data sets for training, rather than data collected from real trafﬁc or (ii) require contextual information and therefore cannot be used for inline detection. In this work, we overcome these limitations by proposing a novel way to label a large volume of data collected from real trafﬁc as DGA/non-DGA and by using deep learning techniques. Our classiﬁers can be trained with large amounts of real trafﬁc, rather than small synthetic data sets, and therefore have better performance.},
+	language = {en},
+	urldate = {2024-04-21},
+	booktitle = {2017 {IEEE} {International} {Conference} on {Data} {Mining} {Workshops} ({ICDMW})},
+	publisher = {IEEE},
+	author = {Yu, Bin and Gray, Daniel L. and Pan, Jie and Cock, Martine De and Nascimento, Anderson C. A.},
+	month = nov,
+	year = {2017},
+	pages = {683--692},
+	file = {Yu et al. - 2017 - Inline DGA Detection with Deep Networks.pdf:C\:\\Users\\erics\\Zotero\\storage\\B4YAF5AJ\\Yu et al. - 2017 - Inline DGA Detection with Deep Networks.pdf:application/pdf},
+}
+
+@book{jurafsky_speech_nodate,
 	title = {Speech and {Language} {Processing}},
 	shorttitle = {Speech and {Language} {Processing}},
 	url = {https://web.stanford.edu/%7Ejurafsky/slp3/},
 	urldate = {2024-04-24},
-    date = {2024-02-03},
-	author = {Jurafsky, Dan and Martin, James H.}
+	author = {Jurafsky, Dan and Martin, James H.},
+	file = {9.pdf:C\:\\Users\\erics\\Zotero\\storage\\FRXI3IF6\\9.pdf:application/pdf;ed3bookfeb3_2024.pdf:C\:\\Users\\erics\\Zotero\\storage\\DT5KSWYD\\ed3bookfeb3_2024.pdf:application/pdf;Speech and Language Processing:C\:\\Users\\erics\\Zotero\\storage\\5BJWB28V\\slp3.html:text/html},
+}
+
+@incollection{dvornek_jointly_2019,
+	title = {Jointly {Discriminative} and {Generative} {Recurrent} {Neural} {Networks} for {Learning} from {fMRI}},
+	volume = {11861},
+	url = {http://arxiv.org/abs/1910.06950},
+	abstract = {Recurrent neural networks (RNNs) were designed for dealing with time-series data and have recently been used for creating predictive models from functional magnetic resonance imaging (fMRI) data. However, gathering large fMRI datasets for learning is a difficult task. Furthermore, network interpretability is unclear. To address these issues, we utilize multitask learning and design a novel RNN-based model that learns to discriminate between classes while simultaneously learning to generate the fMRI time-series data. Employing the long short-term memory (LSTM) structure, we develop a discriminative model based on the hidden state and a generative model based on the cell state. The addition of the generative model constrains the network to learn functional communities represented by the LSTM nodes that are both consistent with the data generation as well as useful for the classification task. We apply our approach to the classification of subjects with autism vs. healthy controls using several datasets from the Autism Brain Imaging Data Exchange. Experiments show that our jointly discriminative and generative model improves classification learning while also producing robust and meaningful functional communities for better model understanding.},
+	urldate = {2024-04-24},
+	author = {Dvornek, Nicha C. and Li, Xiaoxiao and Zhuang, Juntang and Duncan, James S.},
+	year = {2019},
+	doi = {10.1007/978-3-030-32692-0_44},
+	note = {arXiv:1910.06950 [cs, eess, q-bio, stat]},
+	keywords = {Computer Science - Machine Learning, Electrical Engineering and Systems Science - Image and Video Processing, Quantitative Biology - Neurons and Cognition, Statistics - Applications, Statistics - Machine Learning},
+	pages = {382--390},
+	file = {arXiv Fulltext PDF:C\:\\Users\\erics\\Zotero\\storage\\TGBJPFS7\\Dvornek et al. - 2019 - Jointly Discriminative and Generative Recurrent Ne.pdf:application/pdf;arXiv.org Snapshot:C\:\\Users\\erics\\Zotero\\storage\\QRBJSDPW\\1910.html:text/html},
+}
+
+@unpublished{manning_natural_2024,
+	address = {Stanford},
+	title = {Natural {Language} {Processing} with {Deep} {Learning} {CS224N}/{Ling284}},
+	language = {en},
+	urldate = {2024-04-25},
+	author = {Manning, Christopher},
+	year = {2024},
+	file = {Manning - Natural Language Processing with Deep Learning CS2.pdf:C\:\\Users\\erics\\Zotero\\storage\\BTYPSVI2\\Manning - Natural Language Processing with Deep Learning CS2.pdf:application/pdf},
 }

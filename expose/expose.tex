@@ -2,6 +2,8 @@
 
 % Packages
 \usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[all]{hypcap}
 \usepackage[utf8]{inputenc}
 \usepackage[backend=biber]{biblatex}
 \usepackage{ifxetex}
@@ -103,51 +105,55 @@ During the prototyping phase, I will use a dataset of the top 1 million domains
 \cite{noauthor_cisco_nodate} for benign data and
 generate AGDs through reverse engineered DGAs \cite{bader_baderjdomain_generation_algorithms_2024}
 as malicious data, this will be the dataset during the prototyping phase, during evaluation and
-after finalizing the thesis I will try to work with real data from the DGArchive and real data from
+after finalizing the thesis I will try to work with real data from the
+DGArchive\cite{dgarchive_2024} and real data from
 network traffic to test outside of a "lab setting".~(1)\\
-Using these labels we then learn a recurrent neural network, more specifically a gated recurrent
-unit, a long short-term memory with gating mechanism. Additionally we are use the output of the
-hidden layers to feed the semantic meaning into a feed forward network to classify the input, as
-shown in Chapter 9 of the book \textit{Speech and Language Processing} by Jurafsky and Martin
-\cite{jurafsky_speech_2024}. (2)\\
+Using these labels we then learn a recurrent neural network, as shown in Figure \ref{fig:RNNLanguageModel},
+more specifically a gated recurrent unit, a long short-term memory network with gating mechanism.
+Instead on a word level however this network will work on character basis to predict the next
+character in the sequence.
+Additionally we are use the output of the hidden layers to feed the semantic meaning into a feed
+forward network to classify the input, as shown in Chapter 9 of the book \textit{Speech and Language
+Processing} by Jurafsky and Martin \cite{jurafsky_speech_nodate}. (2)\\ 
 After training the language model the next step is to generate regular expressions. This will be
 done by using the distribution output by our model after classifying the domain input. The current
 idea is to use specific probability thresholds to determine what RegEx atoms will be generated for
 each position in the resulting expression. (3)
-
+\begin{figure}[h]
+    \includegraphics[width=\textwidth]{cs224n-spr2024-lecture05-language-model.png}
+    \caption{Example of a RNN Language Model by \cite{manning_natural_2024}}
+    \label{fig:RNNLanguageModel}
+\end{figure}
 \section{Evaluation}
 %How is the degree of success of the applied method measured?
 I will evaluate the result of this thesis by testing how well the generated regular expressions
-will capture the learned structures of DGAs. I will compare how well these expressions will detect
-AGDs. It is imperative that however the amount of false positives (benign domains detected as AGDs)
-should be very low to not block valid connections with the generated filter.
-The evaluation should compare how well the generated regular expression performs compared to the
-language model and also how well it compares to other deep learning approaches shown in other
-scientific papers. It should also be evaluated how well the language model and the regular
-expression performs on different kinds of DGAs, or if it is only able to detect specific kinds. 
-The degree of success should be measured through how close the solution is performing compared to
-the state of the art and well established solutions in detection scores and false positive rates.
-Specifically I will compare the language model, the state of the art and the regular expressions on
-the usual metrics used in other papers in the machine learning field. 
-I will compare the true and false positive rate (TPR/FPR), the accuracy and the F-Score. 
-Added to that I will compare the ROC curve.
+will capture the learned structures of DGAs.  It is imperative that however the amount of false
+positives (benign domains detected as AGDs) should be very low to not block valid connections with
+the generated filter.
 The experiment will be set up the following way:\\
-Using our training dataset all models, my own and the ones from the following paper
-\cite{yu_character_2018} will be trained. Both the language model and the character level detection models
-from Yu et al. are going to be tested on a test dataset, if possible that test dataset will be
-provided from a real world data collection. Once these tests are through the performance will be
-compared directly.
+The test dataset will be constructed from DGArchive\cite{dgarchive_2024} as the source of AGDs and
+real network data will be used for the benign domains.
+Using the dataset I will compare the language model and the RegEx to models provided by Yu et al. 
+\cite{yu_character_2018}. The evaluation will compare Precision, Recall,
+$F_1$-score and area under the ROC curve (AUC), between the character based models, my own language
+model and the generated regular expression(s).
+During evaluation it is also important that false positive rate is kept low to avoid benign domains
+getting blocked.
 \section{Scope}
 %What is the particular scope of your research? Which goals should be achieved?
 %Which are optional and which are explicitly not part of the scope of this
 %thesis?
 The main scope of this work is determining the possibility of using the generated regular
-expressions for
-filtering and how well it works compared to trained models and the state of the art in the field for
-Detecting DGAs. Part of the necessary work is training a multi-task criterion for the language model
-and the classification of DGA and benign domains. If possible the resulting regular expressions
-should be simplified to make them more readable and efficient, however this is not a necessary
-requirement.
+expressions for filtering and how well it performs compared to my language model and the state of the art.
+Part of the necessary work is training a multi-task criterion for the language model and the
+classification of DGA and benign domains. 
+Once the classification works well the resulting RegEx should detect the learned DGA-families
+correctly. Generating easily readable or efficient RegEx, so using specific counts and explicit
+character tokens like [abc]\{1,4\} instead of .*, would be a good quality to have but is not
+the main focus of this thesis. 
+The resulting RegEx also does not need to be better than the current state of the art in detecting
+DGAs just have a close enough performance since feasibility of the approach is the main focus of
+this thesis.
 
 \section{Related Work}
 %Describe the state of the art of the field of research. Support your statements
@@ -158,11 +164,7 @@ Networks which are also commonly used in Natural Language Processing. Yu et al.
 in detecting DGAs.  The paper used the Bambenek dataset for AGDs and the Alexa Dataset for benign
 domains. The models were two pure RNN based Architectures (Endgame, CMU), two CNN based
 architectures (NYU, Invincea) and one hybrid CNN/RNN based architecture (MIT). 
-In their own study Rayhan et al. \cite{rayhan_experimental_2020} also tested 13 different
-machine learning algorithms to compare how they perform in the setting of detecting the dual class
-problem of benign or malicious domains. The test was performed on uni-, bi- and trigrams of the
-domains sourced from the DGArchive, the paper shows that even some simpler approaches like K-Nearest
-Neighbor, or Support Vector Machines were able to get decent results.
+These models will also be used to compare the results of my model vs. the current state of the art.
 
 \clearpage
 
