@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "model2regex"
+version = "0.1.0"
+description = "Package for generating RegExes from a language model"
+authors = ["Eric Schneider <eric.schneider@campus.tu-berlin.de>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+torch = {version = "^2.3.0+cu121", source = "torch-cu121"}
+torchvision = {version = "^0.18.0+cu121", source = "torch-cu121"}
+torchaudio = {version = "^2.3.0+cu121", source = "torch-cu121"}
+
+
+[[tool.poetry.source]]
+name = "torch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
