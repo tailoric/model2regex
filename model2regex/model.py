@@ -1,10 +1,12 @@
 #!/usr/bin/python
 import torch
+import collections
 import torch.nn.functional as F
 from torch import Tensor
 from torch import nn
 from string import ascii_lowercase, digits
 from typing import Optional
+
 from functools import singledispatchmethod
 
 
@@ -51,9 +53,9 @@ class DGAClassifier(nn.Module):
         super(DGAClassifier, self).__init__()
         self.start_char = kwargs.get("start_char", "_")
         if self.start_char in self.vocabulary:
-            raise IllegalStartChar("The start character should not be part of the default vocabulary")
+            raise IllegalStartChar("The start character should not be part of the default vocabulary.")
         if len(self.start_char) > 1:
-            raise IllegalStartChar("The start character should be of length 1")
+            raise IllegalStartChar("The start character should be of length 1.")
         self.vocab = self.vocabulary + self.start_char
         vocabSize = len(self.vocab) + 1
         self.char2idx = BiMapping(self.vocab)
@@ -71,13 +73,16 @@ class DGAClassifier(nn.Module):
         """
         char_seq = map(lambda c: self.start_char + c, char_seqs)
 
-        return torch.stack(tuple(F.pad(torch.tensor([self.char2idx[c] for c in domain]), (0, 254-len(domain))) for domain in char_seq), dim=1)
+        return torch.stack(tuple(
+            F.pad(torch.tensor([self.char2idx[c] for c in domain]),
+                  (0, 254-len(domain))) for domain in char_seq), dim=1)
 
     def forward(self,
                 input_seq: list[str] | Tensor,
                 hidden_state: Optional[Tensor]) -> tuple[Tensor, Tensor]:
 
-        if isinstance(input_seq, list):
+        if isinstance(input_seq, collections.abc.Iterable) and \
+                not isinstance(input_seq, Tensor):
             input_seq = self.charTensor(input_seq)
         embedding = self.embedding(input_seq)
         output, hidden_state = self.rnn(embedding, hidden_state)
