@@ -2,13 +2,33 @@
 This file works as a repository of dga algorithms to import for the prototype
 """
 from random import Random
-from typing import Callable
+from typing import Callable, Literal
+from torch.utils.data import Dataset
+from itertools import repeat
+from pathlib import Path
+import pandas as pd
+
+real_domains = pd.read_csv(Path('data/top-1m.csv'), header=None).values[:, 1]
+
+
+class DGADataset(Dataset):
+    def __init__(self, dgas: list[str], real_domains: list[str]):
+        self.data = list(zip(dgas, repeat(1)))
+        self.data.extend(list(zip(real_domains, repeat(0))))
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, idx) -> tuple[str, Literal[0, 1]]:
+        return self.data[idx]
+
 
 def simple_dga(seed: str) -> str:
     rand = Random(seed)
     digits = '0123456789'
     return 'a' + ''.join(rand.choice(digits) for _ in range(rand.randint(10, 20))) + rand.choice(['.net', '.com','.xyz'])
-    
+
+
 def banjori(domain: str) -> str:
     def map_to_lowercase_letter(s):
         return ord('a') + ((s - ord('a')) % 26)
@@ -19,13 +39,30 @@ def banjori(domain: str) -> str:
     dl[3] = map_to_lowercase_letter(dl[1] + dl[2] + dl[3])
     return ''.join([chr(x) for x in dl])
 
-def generate_dataset(algorithm: Callable[[str], str], seed: str, size: int) -> list[str]:
+
+def generate_dataset(algorithm: Callable[[str], str],
+                     seed: str,
+                     size: int = 2_000_000,
+                     real_domains: list[str] = real_domains
+                     ) -> Dataset:
+    """
+    Generate a DGA dataset that also contains real domains for the other class
+
+    Parameter
+    ---------
+    algorithm: Callable[[str], str]
+        Function that will generate the DGA domains should be a function that accepts a single seed 
+        and returns a domain.
+    seed: str
+        The initial seed of the DGA algorithm.
+    size: int
+        size of the final dataset (dga + real domains)
+        defaults to 2 million.
+    real_domains: list[str]
+        a list of real domains as the benign class, defaults to top 1 million most visited domains dataset.
+    """
     current = algorithm(seed)
     domains = [current]
-
-    for _ in range(size-1):
-        new = algorithm(current)
-        domains.append(new)
-        current = new
-    return domains
-
+    while len(domains) < (size - len(real_domains)):
+        domains.append(algorithm(current))
+    return DGADataset(domains, real_domains)

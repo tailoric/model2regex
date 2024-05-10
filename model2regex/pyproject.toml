@@ -11,6 +11,7 @@ python = "^3.12"
 torch = {version = "^2.3.0+cu121", source = "torch-cu121"}
 torchvision = {version = "^0.18.0+cu121", source = "torch-cu121"}
 torchaudio = {version = "^2.3.0+cu121", source = "torch-cu121"}
+pandas = "^2.2.2"
 
 [tool.poetry.group.cpu]
 optional = true
