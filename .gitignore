@@ -5,3 +5,5 @@
 *.blg
 *.bcf
 *.bbl
+__pycache__
+.venv
