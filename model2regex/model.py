@@ -70,16 +70,33 @@ class DGAClassifier(nn.Module):
     def charTensor(self, char_seqs: list[str]) -> Tensor:
         """
         turn an input sequence of characters into a tensor of indices.
+
+        Parameter
+        ---------
+        char_seq:
+            a list of domains to turn into the tensor of characters
         """
         char_seq = map(lambda c: self.start_char + c, char_seqs)
 
         return torch.stack(tuple(
             F.pad(torch.tensor([self.char2idx[c] for c in domain]),
-                  (0, 254-len(domain))) for domain in char_seq), dim=1)
+                  (0, self.max_len-len(domain))) for domain in char_seq), dim=1)
 
     def forward(self,
                 input_seq: list[str] | Tensor,
                 hidden_state: Optional[Tensor]) -> tuple[Tensor, Tensor]:
+        """
+        The forward pass of data, ideally batched.
+
+        Parameter
+        ---------
+        inpu_seq:
+            Can be a list of strings or a tensor containing the indices of a mapping
+            with each entry being in a column.
+
+        hidden_state:
+            The hidden state to for the rnn layer.
+        """
 
         if isinstance(input_seq, collections.abc.Iterable) and \
                 not isinstance(input_seq, Tensor):

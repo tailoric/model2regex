@@ -13,8 +13,8 @@ real_domains = pd.read_csv(Path('data/top-1m.csv'), header=None).values[:, 1]
 
 class DGADataset(Dataset):
     def __init__(self, dgas: list[str], real_domains: list[str]):
-        self.data = list(zip(dgas, repeat(1)))
-        self.data.extend(list(zip(real_domains, repeat(0))))
+        self.data = list(zip(dgas, repeat(1.0)))
+        self.data.extend(list(zip(real_domains, repeat(0.0))))
 
     def __len__(self) -> int:
         return len(self.data)
@@ -65,4 +65,5 @@ def generate_dataset(algorithm: Callable[[str], str],
     domains = [current]
     while len(domains) < (size - len(real_domains)):
         domains.append(algorithm(current))
+        current = algorithm(current)
     return DGADataset(domains, real_domains)
