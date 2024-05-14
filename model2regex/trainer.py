@@ -85,7 +85,7 @@ class ModelTrainer:
         accuracies = []
         for fold, (dataset_train, dataset_validate) in enumerate(kfold.split(self.dataset), start=1):
             self.writer = SummaryWriter(self.tensorboard_dir / f'Classifier-prototype-fold-{fold}')
-            self.model.load_state_dict(state_dict=untrained_model, assign=True)
+            self.model.load_state_dict(state_dict=untrained_model)
             loader_train = DataLoader(dataset=self.dataset,
                                       batch_size=500,
                                       sampler=SubsetRandomSampler(dataset_train))
@@ -108,7 +108,8 @@ class ModelTrainer:
         self.model.train()
         for epoch in range(epochs):
             e_loss = 0
-            self.log.info("epoch: %s\n\n", epoch)
+            self.log.info("epoch: %s", epoch)
+            self.log.info("----------------------------------------------")
             for batch, (x, y) in enumerate(loader):
                 self.optimizer.zero_grad()
                 input_ = model.charTensor(x).to(self.device)
@@ -119,7 +120,6 @@ class ModelTrainer:
                 self.optimizer.step()
                 if batch in (0, len(loader.sampler) // (loader.batch_size * 2), (len(loader.sampler) // loader.batch_size) - 1):
                     idx = random.randint(0, len(x)-1)
-                    self.log.info("--------------------------------------------")
                     self.log.info("showing one prediction of batch: %d", batch)
                     self.log.info("inputstr: %s", x[idx])
                     self.log.info("label: %d", y[idx])
@@ -129,7 +129,7 @@ class ModelTrainer:
                     self.log.info("--------------------------------------------")
 
             self.model.train()
-            self.log.info("the sum loss of epoch %d is: %f", epoch, e_loss)
+            self.log.info("the sum loss of epoch %d is: %f\n\n", epoch, e_loss)
             if self.writer:
                 self.writer.add_scalar('Loss/epoch/train', e_loss, epoch)
         if self.writer:
