@@ -63,7 +63,7 @@ class TestModel(unittest.TestCase):
         self.assertEqual(domain, "_www.google.com")
 
     def test_forward_with_string(self):
-        _class, hidden = self.model(["www.google.com", "reddit.com"], None)
+        _class, prediction, hidden = self.model(["www.google.com", "reddit.com"], None)
         for item in _class.squeeze().tolist():
             self.assertTrue(0 < item <= 1)
         self.assertTupleEqual(hidden.size(), (1, 2, 128))
@@ -100,7 +100,7 @@ class TestModel(unittest.TestCase):
                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                  0, 0, 0]
                 )
-        _class, hidden = self.model(torch.stack((google_tensor, reddit_tensor)).permute(1, 0), None)
+        _class, prediction, hidden = self.model(torch.stack((google_tensor, reddit_tensor)).permute(1, 0), None)
         for item in _class.squeeze().tolist():
             self.assertTrue(0 < item <= 1)
         self.assertTupleEqual(hidden.size(), (1, 2, 128))
@@ -109,7 +109,7 @@ class TestModel(unittest.TestCase):
         dataset = TestData(['www.google.com', 'reddit.com', 'amazon.de'], ['abcdefg.net', 'defghijkl.net', 'mnopqrstu.net'])
         loader = DataLoader(dataset, batch_size=2, shuffle=True)
         for batch, (x, y) in enumerate(loader):
-            cls, hidden = self.model(x, None)
+            cls, prediction, hidden = self.model(x, None)
             self.assertTupleEqual(hidden.size(), (1, 2, 128))
             for item in cls.squeeze().tolist():
                 self.assertTrue(0 < item <= 1)

@@ -1,17 +1,19 @@
-from typing import Callable, Optional
+from typing import Optional
 from torch.utils.data import Dataset, SubsetRandomSampler, DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torch import optim, nn, Tensor
+from torch import optim, nn
+from torch.distributions import Categorical
 from pathlib import Path
 from sklearn.model_selection import KFold
 from copy import deepcopy
-from model import DGAClassifier
-from dga import generate_dataset, banjori
+from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
+from .dga import generate_dataset, banjori
+import torch.nn.functional as F
 import logging
 import random
 import torch
 import sys
-
+import argparse
 
 class ModelTrainer:
     """
@@ -34,7 +36,7 @@ class ModelTrainer:
     device: str
         The device to store models and tensors to, defaults to cuda:0
 
-    criterion: Callable[[Tensor, Tensor], Tensor]
+    criterion:
         A loss criterion from toch.nn, CrossEntropyLoss by default
 
     optimizer:
@@ -57,11 +59,11 @@ class ModelTrainer:
             self.tensorboard_dir.mkdir(parents=True, exist_ok=True)
 
         self.device = kwargs.get("device", "cuda:0")
-        self.criterion: Callable[[Tensor, Tensor], Tensor | int | float] = kwargs.get("criterion", nn.CrossEntropyLoss(reduction="sum"))
+        self.criterion = kwargs.get("criterion", nn.CrossEntropyLoss(reduction="sum"))
         self.optimizer = kwargs.get("optimizer", optim.Adam(self.model.parameters(),
                                                             lr=kwargs.get("optim_lr", 0.001)))
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(logging.INFO)
+        self.log.setLevel(kwargs.get("log_level", logging.INFO))
         self.model.to(self.device)
 
     def train(self, *, folds=5, epochs=3, save_model=True):
@@ -78,7 +80,8 @@ class ModelTrainer:
             The amount of epochs to go through, defaults to 3.
 
         save_model: bool
-            Whether the models created during cross validation should be saved to the models_path, defaults to True.
+            Whether the models created during cross validation should be saved to the models_path,
+            defaults to True.
         """
         kfold = KFold(n_splits=folds, shuffle=True)
         untrained_model = deepcopy(self.model.state_dict())
@@ -94,7 +97,7 @@ class ModelTrainer:
                                            sampler=SubsetRandomSampler(dataset_validate))
             self.train_fold(loader=loader_train, epochs=epochs)
             if save_model:
-                torch.save(model.state_dict(), self.models_path / f'model-fold-{fold}.pth')
+                torch.save(self.model.state_dict(), self.models_path / f'model-fold-{fold}.pth')
             total, correct = self.validate_fold(loader=loader_validation)
             accuracy = correct / total
             self.log.info("validation of fold %d: %d/%d", fold, correct, total)
@@ -104,28 +107,53 @@ class ModelTrainer:
         for idx, accuracy in enumerate(accuracies, start=1):
             self.log.info(f"accuracy of fold {idx}: {accuracy:%}")
 
+    def predict_next_token(self, starter: str):
+        char_t = self.model.charTensor([starter])
+        output, tokens, _ = self.model(char_t.permute(1, 0).squeeze().to(self.device), None)
+        tokens = F.softmax(torch.squeeze(tokens[-1, :]), dim=0)
+        dist = Categorical(output)
+        index = dist.sample()
+        return index.item()
+
+    def predict(self, starter: str):
+        for _ in range(254):
+            ind = self.predict_next_token(starter)
+            if ind == 0:
+                starter += '<END>'
+                break
+            starter += self.model.char2idx[ind]
+        return starter
+
     def train_fold(self, loader: DataLoader, epochs=3):
         self.model.train()
+        total_batches = len(loader.sampler) // loader.batch_size
         for epoch in range(epochs):
             e_loss = 0
             self.log.info("epoch: %s", epoch)
             self.log.info("----------------------------------------------")
             for batch, (x, y) in enumerate(loader):
                 self.optimizer.zero_grad()
-                input_ = model.charTensor(x).to(self.device)
-                output, _ = model(input_, None)
-                loss = self.criterion(output.squeeze(), y.to(self.device))
+                input_ = self.model.charTensor(x).to(self.device)
+                output, tokens, _ = self.model(input_, None)
+                shifted_input = torch.vstack((input_[1:], torch.zeros(1, loader.batch_size).to(self.device))).long()
+                loss_lm = self.criterion(tokens.permute(1, 2, 0), shifted_input.permute(1, 0))
+                loss_class = self.criterion(output.squeeze(), y.to(self.device))
+                loss = loss_lm + loss_class
                 loss.backward()
                 e_loss += loss.item()
                 self.optimizer.step()
-                if batch in (0, len(loader.sampler) // (loader.batch_size * 2), (len(loader.sampler) // loader.batch_size) - 1):
+                if batch in (0, total_batches // 2, total_batches-1):
                     idx = random.randint(0, len(x)-1)
+                    correct = (output.permute(1, 0).round() == y.to(self.device)).sum().item()
                     self.log.info("showing one prediction of batch: %d", batch)
                     self.log.info("inputstr: %s", x[idx])
                     self.log.info("label: %d", y[idx])
                     self.log.info("output: %d", output[idx].round().item())
                     self.log.info("accuracy of batch %d", batch)
-                    self.log.info("%d/%d correct.", (output.permute(1, 0).round() == y.to(self.device)).sum().item(), loader.batch_size)
+                    self.log.info("%d/%d correct.", correct, loader.batch_size)
+                    self.model.eval()
+                    self.log.info("prediction: %s", self.predict("_"))
+                    self.model.train()
                     self.log.info("--------------------------------------------")
 
             self.model.train()
@@ -140,8 +168,8 @@ class ModelTrainer:
         with torch.no_grad():
             self.model.eval()
             for batch, (x, y) in enumerate(loader):
-                input_ = model.charTensor(x).to(self.device)
-                output, _ = self.model(input_, None)
+                input_ = self.model.charTensor(x).to(self.device)
+                output, _, _ = self.model(input_, None)
                 total += y.size(0)
                 correct += (output.permute(1, 0).round() == y.to(self.device)).sum().item()
         return total, correct
@@ -149,11 +177,7 @@ class ModelTrainer:
 
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout)
-    model: DGAClassifier = DGAClassifier(64, 128, 1)
-    print(model)
-    logging.debug("generating dataset...")
+    model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com')
-    logging.debug("%s entries created for dataset", len(dataset))
     trainer = ModelTrainer(model=model, dataset=dataset)
-    logging.info("starting training for model %s", model)
     trainer.train()

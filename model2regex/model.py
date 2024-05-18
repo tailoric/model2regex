@@ -10,6 +10,14 @@ from typing import Optional
 from functools import singledispatchmethod
 
 
+DEFAULT_MODEL_SETTINGS = {
+            "emb": 64,
+            "size": 128,
+            "nlayers": 1,
+            "start_char": "_",
+        }
+
+
 class BiMapping:
     """
     A bidirectonal mapping class holding two dictionaries
@@ -63,6 +71,7 @@ class DGAClassifier(nn.Module):
                                       embedding_dim=emb)
         self.rnn = nn.GRU(input_size=emb, hidden_size=size,
                           num_layers=nlayers)
+        self.decoder = nn.Linear(size, vocabSize)
         self.out = nn.Linear(in_features=size, out_features=1)
         self.drop = nn.Dropout(0.3)
         self.sig = nn.Sigmoid()
@@ -103,8 +112,9 @@ class DGAClassifier(nn.Module):
             input_seq = self.charTensor(input_seq)
         embedding = self.embedding(input_seq)
         output, hidden_state = self.rnn(embedding, hidden_state)
+        decoded = self.decoder(output)
         x = hidden_state[-1, :]
         x = self.drop(x)
         x = self.out(x)
         x = self.sig(x)
-        return x, hidden_state.detach()
+        return x, decoded, hidden_state.detach()
