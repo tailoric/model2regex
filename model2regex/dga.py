@@ -61,8 +61,11 @@ def generate_dataset(algorithm: Callable[[str], str],
     real_domains: list[str]
         a list of real domains as the benign class, defaults to top 1 million most visited domains dataset.
     """
+    if size > 2 * len(real_domains):
+        size = 2 * len(real_domains)
     current = algorithm(seed)
     domains = [current]
+    real_domains = real_domains[:size//2]
     while len(domains) < (size - len(real_domains)):
         domains.append(algorithm(current))
         current = algorithm(current)
