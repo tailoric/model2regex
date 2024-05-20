@@ -60,8 +60,9 @@ def generate_dataset(algorithm: Callable[[str], str],
         defaults to 2 million.
     real_domains: list[str]
         a list of real domains as the benign class, defaults to top 1 million most visited domains dataset.
+        if this list is empty then generate a dataset only containing DGAs
     """
-    if size > 2 * len(real_domains):
+    if size > 2 * len(real_domains) and len(real_domains) > 0:
         size = 2 * len(real_domains)
     current = algorithm(seed)
     domains = [current]
