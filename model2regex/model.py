@@ -76,7 +76,7 @@ class DGAClassifier(nn.Module):
         self.drop = nn.Dropout(0.3)
         self.sig = nn.Sigmoid()
 
-    def charTensor(self, char_seqs: list[str]) -> Tensor:
+    def charTensor(self, char_seqs: list[str], with_padding: bool = True) -> Tensor:
         """
         turn an input sequence of characters into a tensor of indices.
 
@@ -84,12 +84,17 @@ class DGAClassifier(nn.Module):
         ---------
         char_seq:
             a list of domains to turn into the tensor of characters
+        with_padding: bool
+            pad the vector with 0 to the max length for domains, default True.
         """
         char_seq = map(lambda c: self.start_char + c, char_seqs)
 
-        return torch.stack(tuple(
-            F.pad(torch.tensor([self.char2idx[c] for c in domain]),
-                  (0, self.max_len-len(domain))) for domain in char_seq), dim=1)
+        if with_padding:
+            return torch.stack(tuple(
+                F.pad(torch.tensor([self.char2idx[c] for c in domain]),
+                      (0, self.max_len-len(domain))) for domain in char_seq), dim=1)
+        else:
+            return torch.stack(tuple(torch.tensor([self.char2idx[c] for c in domain]) for domain in char_seq), dim=1)
 
     def forward(self,
                 input_seq: list[str] | Tensor,
@@ -99,7 +104,7 @@ class DGAClassifier(nn.Module):
 
         Parameter
         ---------
-        inpu_seq:
+        input_seq:
             Can be a list of strings or a tensor containing the indices of a mapping
             with each entry being in a column.
 

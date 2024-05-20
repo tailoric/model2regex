@@ -13,7 +13,7 @@ import logging
 import random
 import torch
 import sys
-import argparse
+
 
 class ModelTrainer:
     """
@@ -62,6 +62,7 @@ class ModelTrainer:
         self.criterion = kwargs.get("criterion", nn.CrossEntropyLoss(reduction="sum"))
         self.optimizer = kwargs.get("optimizer", optim.Adam(self.model.parameters(),
                                                             lr=kwargs.get("optim_lr", 0.001)))
+        self.lambda_cls = kwargs.get("lambda_cls", 0.3)
         self.log = logging.getLogger(__name__)
         self.log.setLevel(kwargs.get("log_level", logging.INFO))
         self.model.to(self.device)
@@ -108,10 +109,10 @@ class ModelTrainer:
             self.log.info(f"accuracy of fold {idx}: {accuracy:%}")
 
     def predict_next_token(self, starter: str):
-        char_t = self.model.charTensor([starter])
-        output, tokens, _ = self.model(char_t.permute(1, 0).squeeze().to(self.device), None)
+        char_t = self.model.charTensor([starter], with_padding=False)
+        output, tokens, _ = self.model(char_t.to(self.device), None)
         tokens = F.softmax(torch.squeeze(tokens[-1, :]), dim=0)
-        dist = Categorical(output)
+        dist = Categorical(tokens)
         index = dist.sample()
         return index.item()
 
@@ -149,10 +150,11 @@ class ModelTrainer:
                     self.log.info("inputstr: %s", x[idx])
                     self.log.info("label: %d", y[idx])
                     self.log.info("output: %d", output[idx].round().item())
+                    self.log.info("loss_lm: %f, loss_class: %f", loss_lm, loss_class)
                     self.log.info("accuracy of batch %d", batch)
                     self.log.info("%d/%d correct.", correct, loader.batch_size)
                     self.model.eval()
-                    self.log.info("prediction: %s", self.predict("_"))
+                    self.log.info("prediction: %s", self.predict("aestest"))
                     self.model.train()
                     self.log.info("--------------------------------------------")
 
@@ -178,6 +180,6 @@ class ModelTrainer:
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout)
     model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
-    dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com')
+    dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
     trainer = ModelTrainer(model=model, dataset=dataset)
     trainer.train()
