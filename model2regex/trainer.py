@@ -2,13 +2,11 @@ from typing import Optional
 from torch.utils.data import Dataset, SubsetRandomSampler, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch import optim, nn
-from torch.distributions import Categorical
 from pathlib import Path
 from sklearn.model_selection import KFold
 from copy import deepcopy
 from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
 from .dga import generate_dataset, banjori
-import torch.nn.functional as F
 import logging
 import random
 import torch
@@ -59,6 +57,7 @@ class ModelTrainer:
             self.tensorboard_dir.mkdir(parents=True, exist_ok=True)
 
         self.device = kwargs.get("device", "cuda:0")
+        self.model.device = self.device
         self.criterion = kwargs.get("criterion", nn.CrossEntropyLoss(reduction="sum"))
         self.optimizer = kwargs.get("optimizer", optim.Adam(self.model.parameters(),
                                                             lr=kwargs.get("optim_lr", 0.001)))
@@ -108,23 +107,6 @@ class ModelTrainer:
         for idx, accuracy in enumerate(accuracies, start=1):
             self.log.info(f"accuracy of fold {idx}: {accuracy:%}")
 
-    def predict_next_token(self, starter: str):
-        char_t = self.model.charTensor([starter], with_padding=False)
-        output, tokens, _ = self.model(char_t.to(self.device), None)
-        tokens = F.softmax(torch.squeeze(tokens[-1, :]), dim=0)
-        dist = Categorical(tokens)
-        index = dist.sample()
-        return index.item()
-
-    def predict(self, starter: str):
-        for _ in range(254):
-            ind = self.predict_next_token(starter)
-            if ind == 0:
-                starter += '<END>'
-                break
-            starter += self.model.char2idx[ind]
-        return starter
-
     def train_fold(self, loader: DataLoader, epochs=3):
         self.model.train()
         total_batches = len(loader.sampler) // loader.batch_size
@@ -154,7 +136,7 @@ class ModelTrainer:
                     self.log.info("accuracy of batch %d", batch)
                     self.log.info("%d/%d correct.", correct, loader.batch_size)
                     self.model.eval()
-                    self.log.info("prediction: %s", self.predict("aestest"))
+                    self.log.info("prediction: %s", self.model.predict("aestest"))
                     self.model.train()
                     self.log.info("--------------------------------------------")
 

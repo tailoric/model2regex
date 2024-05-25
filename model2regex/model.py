@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch import nn
 from string import ascii_lowercase, digits
-from typing import Optional
+from torch.distributions import Categorical
 
 from functools import singledispatchmethod
 
@@ -29,7 +29,7 @@ class BiMapping:
         self._reverse = {i: ch for i, ch in enumerate(characters, start=1)}
 
     @singledispatchmethod
-    def __getitem__(self, item):
+    def __getitem__(self, item)-> None:
         raise NotImplementedError("item must be of type int or str")
 
     @__getitem__.register
@@ -58,6 +58,16 @@ class DGAClassifier(nn.Module):
     max_len: int = 254
 
     def __init__(self, emb: int, size: int, nlayers: int, **kwargs) -> None:
+        """
+        Parameters:
+        -----------
+        emb: int
+            The embedding dimension.
+        size: int
+            the size of the hidden layers
+        nlayers: int
+            the number of GRU layers
+        """
         super(DGAClassifier, self).__init__()
         self.start_char = kwargs.get("start_char", "_")
         if self.start_char in self.vocabulary:
@@ -75,6 +85,7 @@ class DGAClassifier(nn.Module):
         self.out = nn.Linear(in_features=size, out_features=1)
         self.drop = nn.Dropout(0.3)
         self.sig = nn.Sigmoid()
+        self.device = kwargs.get("device", "cuda:0")
 
     def charTensor(self, char_seqs: list[str], with_padding: bool = True) -> Tensor:
         """
@@ -98,7 +109,7 @@ class DGAClassifier(nn.Module):
 
     def forward(self,
                 input_seq: list[str] | Tensor,
-                hidden_state: Optional[Tensor]) -> tuple[Tensor, Tensor]:
+                hidden_state: Tensor | None) -> tuple[Tensor, Tensor]:
         """
         The forward pass of data, ideally batched.
 
@@ -123,3 +134,39 @@ class DGAClassifier(nn.Module):
         x = self.out(x)
         x = self.sig(x)
         return x, decoded, hidden_state.detach()
+
+    def predict_next_token(self, starter: str) -> tuple[int, Categorical]:
+        """
+        Helper function for generating the next token of the current starter
+
+        Parameters:
+        -----------
+        starter: str
+            The character sequence to generate the next token for.
+
+        Returns:
+            A sampling from the distribution and the distribution as a tuple.
+        """
+        char_t = self.charTensor([starter], with_padding=False)
+        output, tokens, _ = self(char_t.to(self.device), None)
+        tokens = F.softmax(torch.squeeze(tokens[-1, :]), dim=0)
+        dist = Categorical(tokens)
+        index = dist.sample()
+        return index.item(), dist
+
+    def predict(self, starter: str) -> str:
+        """
+        Generate a sequence of letters based on the starting string.
+        Parameters:
+        -----------
+        starter: str
+            The starting sequence.
+        """
+        for _ in range(254):
+            ind = self.predict_next_token(starter)
+            if ind == 0:
+                starter += '<END>'
+                break
+            starter += self.char2idx[ind]
+        return starter
+
