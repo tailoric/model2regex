@@ -163,7 +163,7 @@ class DGAClassifier(nn.Module):
             The starting sequence.
         """
         for _ in range(254):
-            ind = self.predict_next_token(starter)
+            ind, _ = self.predict_next_token(starter)
             if ind == 0:
                 starter += '<END>'
                 break
