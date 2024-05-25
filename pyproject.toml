@@ -23,6 +23,10 @@ torch = "^2.3.0"
 torchvision = "^0.18.0"
 torchaudio = "^2.3.0"
 
+
+[tool.poetry.group.dev.dependencies]
+ipython = "^8.24.0"
+
 [[tool.poetry.source]]
 name = "torch-cu121"
 url = "https://download.pytorch.org/whl/cu121"
