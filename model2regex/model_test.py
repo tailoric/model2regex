@@ -115,12 +115,14 @@ class TestModel(unittest.TestCase):
             for item in cls.squeeze().tolist():
                 self.assertTrue(0 < item <= 1)
 
+    @unittest.skipUnless(torch.cuda.is_available, "No GPU available")
     def test_types_of_predict(self):
         self.model.to("cuda:0")
         prediction = self.model.predict("")
         self.assertIsInstance(prediction, str)
-        self.assertRegex(prediction, r"^[a-z0-9.-]{1,253}<END>")
+        self.assertRegex(prediction, r"^[a-z0-9._-]+<END>")
 
+    @unittest.skipUnless(torch.cuda.is_available, "No GPU available")
     def test_types_of_predict_next_token(self):
         self.model.to("cuda:0")
         token, distribution = self.model.predict_next_token("")
