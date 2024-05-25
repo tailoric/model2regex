@@ -1,5 +1,5 @@
 from typing import Self
-from model2regex.model import DGAClassifier
+from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
 import torch
 UP = "\x1B[3A"
 CLR = "\x1B[0K"
@@ -76,3 +76,10 @@ class DFA:
                         nodes_to_visit.append(new_node)
                     else:
                         end_nodes += 1
+if __name__ == "__main__":
+    model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
+    model.load_state_dict(torch.load('models/model-fold-2.pth'))
+    model.to("cuda:0")
+    model.eval()
+    dfa = DFA(model, threshold=0.4)
+    dfa.build_tree()

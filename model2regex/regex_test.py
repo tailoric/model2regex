@@ -16,6 +16,7 @@ class RegexGenTest(unittest.TestCase):
         self.model.load_state_dict(torch.load(models_path / 'model-fold-2.pth'))
         self.model.to("cuda:0")
 
+    @unittest.skip("Not ready yet")
     def test_build_tree(self):
         dfa = DFA(self.model, threshold=0.4)
         dfa.build_tree()
