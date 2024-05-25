@@ -1,5 +1,6 @@
 import unittest
 import torch
+from torch.distributions import Categorical
 from torch.utils.data import Dataset, DataLoader
 from model import IllegalStartChar, DGAClassifier
 from itertools import repeat
@@ -113,6 +114,18 @@ class TestModel(unittest.TestCase):
             self.assertTupleEqual(hidden.size(), (1, 2, 128))
             for item in cls.squeeze().tolist():
                 self.assertTrue(0 < item <= 1)
+
+    def test_types_of_predict(self):
+        self.model.to("cuda:0")
+        prediction = self.model.predict("")
+        self.assertIsInstance(prediction, str)
+        self.assertRegex(prediction, r"^[a-z0-9.-]{1,253}<END>")
+
+    def test_types_of_predict_next_token(self):
+        self.model.to("cuda:0")
+        token, distribution = self.model.predict_next_token("")
+        self.assertIsInstance(token, int)
+        self.assertIsInstance(distribution, Categorical)
 
 
 if __name__ == "__main__":

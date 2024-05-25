@@ -5,7 +5,7 @@ import pandas as pd
 from . import (
         model,
         dga,
-        trainer
+        trainer,
     )
 
 if __name__ == "__main__":
