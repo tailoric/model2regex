@@ -14,6 +14,9 @@ torchaudio = {version = "^2.3.0+cu121", source = "torch-cu121"}
 pandas = "^2.2.2"
 scikit-learn = "^1.4.2"
 tensorboard = "^2.16.2"
+matplotlib = "^3.9.0"
+pycairo = "^1.26.0"
+networkx = "^3.3"
 
 [tool.poetry.group.cpu]
 optional = true

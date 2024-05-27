@@ -1,5 +1,5 @@
-from model import DGAClassifier, DEFAULT_MODEL_SETTINGS
-from regex import DFA
+from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
+from .regex import DFA
 import pathlib
 import unittest
 import torch
