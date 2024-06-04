@@ -1,4 +1,4 @@
-from model import DGAClassifier, DEFAULT_MODEL_SETTINGS
+from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
 import pathlib
 import unittest
 import torch

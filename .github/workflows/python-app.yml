@@ -31,4 +31,4 @@ jobs:
         poetry install
     - name: Run unittests
       run: |
-        poetry run python -m unittest discover -s model2regex -p "*_test.py"
+        poetry run python -m unittest discover . -p "*_test.py"

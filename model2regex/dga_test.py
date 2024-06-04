@@ -1,4 +1,4 @@
-import dga
+from . import dga
 import unittest
 
 

@@ -2,7 +2,7 @@ import unittest
 import torch
 from torch.distributions import Categorical
 from torch.utils.data import Dataset, DataLoader
-from model import IllegalStartChar, DGAClassifier
+from .model import IllegalStartChar, DGAClassifier
 from itertools import repeat
 
 
@@ -115,14 +115,14 @@ class TestModel(unittest.TestCase):
             for item in cls.squeeze().tolist():
                 self.assertTrue(0 < item <= 1)
 
-    @unittest.skipUnless(torch.cuda.is_available, "No GPU available")
+    @unittest.skipUnless(torch.cuda.is_available(), "No GPU available")
     def test_types_of_predict(self):
         self.model.to("cuda:0")
         prediction = self.model.predict("")
         self.assertIsInstance(prediction, str)
         self.assertRegex(prediction, r"^[a-z0-9._-]+<END>")
 
-    @unittest.skipUnless(torch.cuda.is_available, "No GPU available")
+    @unittest.skipUnless(torch.cuda.is_available(), "No GPU available")
     def test_types_of_predict_next_token(self):
         self.model.to("cuda:0")
         token, distribution = self.model.predict_next_token("")
