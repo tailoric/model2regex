@@ -71,6 +71,14 @@ class DFA:
         nx.draw(self.graph, labels=dict(self.graph.nodes(data='item')), pos=layout, with_labels=True)
         plt.show()
 
+    def build_regex(self): 
+        order = nx.dfs_preorder_nodes(self.graph, source=0)
+        for node in order:
+
+            print(self.graph.nodes[node]['item'])
+        
+    
+
 if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     model.load_state_dict(torch.load('models/model-fold-1.pth'))
@@ -78,3 +86,4 @@ if __name__ == "__main__":
     dfa = DFA(model, root_starter="www.go", threshold=0.4)
     dfa.build_tree(store=True)
     dfa.visualize_tree()
+    dfa.build_regex()
