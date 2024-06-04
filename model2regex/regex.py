@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-from typing import Self, TypedDict
+from typing import TypedDict
 from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
 import torch
 UP = "\x1B[3A"
@@ -22,49 +22,37 @@ class DFA:
 
     def build_tree(self) -> None:
         char_map = self.model.char2idx
-        nodes_to_visit = [(0,self.graph.nodes[0])]
+        nodes_to_visit: list[tuple[int,Node]] = [(0,self.graph.nodes[0])]
         id_counter = 0
         end_nodes = 0
         while nodes_to_visit:
             node_id, data = nodes_to_visit.pop(0)
             depth = data.get('depth')
-            starter = [data.get('label')]
-            parent = list(self.graph.predecessors(node_id))
+            starter: list[str|None] = [data.get('label')]
+            parent  = list(self.graph.predecessors(node_id))
             while parent:
                 parent_node = self.graph.nodes[parent[0]]
                 starter.append(parent_node.get('label'))
-                parent = list(self.graph.predecessors(parent[0]))
+                parent: list[int] = list(self.graph.predecessors(parent[0]))
             starter = "".join(reversed(starter))
             _, distribution = self.model.predict_next_token(starter)
             mask = distribution.probs > self.threshold
             if torch.any(mask):
                 indices = torch.argwhere(mask).squeeze().tolist()
-                if not isinstance(indices, list):
-                    indices = [indices]
-                for idx in indices:
-                    new_node : Node = {'label': char_map[idx], 'depth': depth+1}
-                    new_node_id = id_counter + 1
-                    self.graph.add_node(new_node_id, **new_node)
-                    self.graph.add_edge(node_id, new_node_id)
-                    if idx != 0:
-                        nodes_to_visit.append((new_node_id, new_node))
-                    else:
-                        end_nodes += 1
-                    id_counter += 1
             else:
                 indices = torch.topk(distribution.probs, 3).indices.squeeze().tolist()
-                if not isinstance(indices, list):
-                    indices = [indices]
-                for idx in indices:
-                    new_node : Node = {'label': char_map[idx], 'depth': depth+1}
-                    new_node_id = id_counter + 1
-                    self.graph.add_node(new_node_id, **new_node)
-                    self.graph.add_edge(node_id, new_node_id)
-                    if idx != 0:
-                        nodes_to_visit.append((new_node_id, new_node))
-                    else:
-                        end_nodes += 1
-                    id_counter += 1
+            if not isinstance(indices, list):
+                indices = [indices]
+            for idx in indices:
+                new_node : Node = {'label': char_map[idx], 'depth': depth + 1}
+                new_node_id = id_counter + 1
+                self.graph.add_node(new_node_id, **new_node)
+                self.graph.add_edge(node_id, new_node_id)
+                if idx != 0:
+                    nodes_to_visit.append((new_node_id, new_node))
+                else:
+                    end_nodes += 1
+                id_counter += 1
 
             print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
                   f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}{CLR}\n")
