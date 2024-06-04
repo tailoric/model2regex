@@ -29,6 +29,7 @@ torchaudio = "^2.3.0"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.24.0"
+pyreadline3 = "^3.4.1"
 
 [[tool.poetry.source]]
 name = "torch-cu121"
