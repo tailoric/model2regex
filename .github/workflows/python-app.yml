@@ -19,6 +19,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        lfs: true
     - name: Install poetry
       run: pipx install poetry
     - name: Set up Python 3.12
