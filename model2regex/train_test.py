@@ -14,6 +14,7 @@ class TrainedModelTest(unittest.TestCase):
         self.model.load_state_dict(torch.load(models_path / 'model-fold-2.pth'))
         self.model.to("cuda:0")
 
+    @unittest.skipUnless(torch.cuda.is_available(), "No GPU available")
     def test_trained_model_input(self):
         prediction = self.model.predict("www")
 
