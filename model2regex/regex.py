@@ -72,11 +72,25 @@ class DFA:
         plt.show()
 
     def build_regex(self): 
-        order = nx.dfs_preorder_nodes(self.graph, source=0)
+        order = nx.dfs_predecessors(self.graph, source=0)
+        end_symbol_stack = []
+        regex_str = self.graph.nodes[0]['item']
+        breakpoint()
         for node in order:
-
-            print(self.graph.nodes[node]['item'])
-        
+            data = self.graph.nodes[node]
+            item = data['item']
+            print(item)
+            if item == "<END>":
+                regex_str += end_symbol_stack.pop()
+            else:
+                regex_str += item
+            if len(self.graph[node]) > 1:
+                num_child = len(self.graph[node])
+                end_symbol_stack.extend(")" + "|" * (num_child - 1))
+                regex_str += "("
+        regex_str = regex_str.replace('.', '\\.')
+        print(regex_str)
+        return regex_str
     
 
 if __name__ == "__main__":
@@ -85,5 +99,5 @@ if __name__ == "__main__":
     model.to("cuda:0")
     dfa = DFA(model, root_starter="www.go", threshold=0.4)
     dfa.build_tree(store=True)
-    dfa.visualize_tree()
     dfa.build_regex()
+    dfa.visualize_tree()
