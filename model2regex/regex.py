@@ -45,7 +45,7 @@ class DFA:
             if torch.any(mask):
                 indices = torch.argwhere(mask).squeeze().tolist()
             else:
-                indices = torch.topk(distribution.probs, 3).indices.squeeze().tolist()
+                indices = torch.topk(distribution.probs, 5).indices.squeeze().tolist()
             if not isinstance(indices, list):
                 indices = [indices]
             for idx in indices:
@@ -75,19 +75,30 @@ class DFA:
         order = nx.dfs_predecessors(self.graph, source=0)
         end_symbol_stack = []
         regex_str = self.graph.nodes[0]['item']
-        breakpoint()
+        if len(self.graph[0])>1:
+            end_symbol_stack.append(")"+"|" * (len(self.graph[0]) -1))
+            regex_str += "("
         for node in order:
             data = self.graph.nodes[node]
             item = data['item']
-            print(item)
-            if item == "<END>":
-                regex_str += end_symbol_stack.pop()
+            if item == "<END>" and end_symbol_stack:
+                current_stack = list(end_symbol_stack.pop())
+                regex_str += current_stack.pop()
+                if current_stack:
+                    end_symbol_stack.append("".join(current_stack))
+                elif end_symbol_stack:
+                    current_stack = list(end_symbol_stack.pop())
+                    regex_str += current_stack.pop()
+                    if current_stack:
+                        end_symbol_stack.append("".join(current_stack))
+                    
             else:
                 regex_str += item
             if len(self.graph[node]) > 1:
                 num_child = len(self.graph[node])
-                end_symbol_stack.extend(")" + "|" * (num_child - 1))
+                end_symbol_stack.append(")" + "|" * (num_child - 1))
                 regex_str += "("
+        regex_str += "".join(end_symbol_stack)
         regex_str = regex_str.replace('.', '\\.')
         print(regex_str)
         return regex_str
@@ -97,7 +108,7 @@ if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     model.load_state_dict(torch.load('models/model-fold-1.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="www.go", threshold=0.4)
+    dfa = DFA(model, root_starter="dbz", threshold=0.4)
     dfa.build_tree(store=True)
     dfa.build_regex()
     dfa.visualize_tree()
