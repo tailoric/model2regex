@@ -22,6 +22,13 @@ class TestModel(unittest.TestCase):
 
     def setUp(self):
         self.model: DGAClassifier = DGAClassifier(64, 128, 1)
+        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        if not torch.cuda.is_available():
+            self.model.to('cpu')
+            self.model.device = self.device
+        else:
+            self.model.to('cuda:0')
+            self.model.device = self.device
 
     def test_longer_start_character(self):
         error_msg = "Exception should raise because start_char is longer than 1"
@@ -64,7 +71,7 @@ class TestModel(unittest.TestCase):
         self.assertEqual(domain, "_www.google.com")
 
     def test_forward_with_string(self):
-        _class, prediction, hidden = self.model(["www.google.com", "reddit.com"], None)
+        _class, _, hidden = self.model(["www.google.com", "reddit.com"], None)
         for item in _class.squeeze().tolist():
             self.assertTrue(0 < item <= 1)
         self.assertTupleEqual(hidden.size(), (1, 2, 128))
@@ -101,7 +108,7 @@ class TestModel(unittest.TestCase):
                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                  0, 0, 0]
                 )
-        _class, prediction, hidden = self.model(torch.stack((google_tensor, reddit_tensor)).permute(1, 0), None)
+        _class, prediction, hidden = self.model(torch.stack((google_tensor, reddit_tensor)).permute(1, 0).to(self.device), None)
         for item in _class.squeeze().tolist():
             self.assertTrue(0 < item <= 1)
         self.assertTupleEqual(hidden.size(), (1, 2, 128))
@@ -115,16 +122,12 @@ class TestModel(unittest.TestCase):
             for item in cls.squeeze().tolist():
                 self.assertTrue(0 < item <= 1)
 
-    @unittest.skipUnless(torch.cuda.is_available(), "No GPU available")
     def test_types_of_predict(self):
-        self.model.to("cuda:0")
         prediction = self.model.predict("")
         self.assertIsInstance(prediction, str)
         self.assertRegex(prediction, r"^[a-z0-9._-]+<END>")
 
-    @unittest.skipUnless(torch.cuda.is_available(), "No GPU available")
     def test_types_of_predict_next_token(self):
-        self.model.to("cuda:0")
         token, distribution = self.model.predict_next_token("")
         self.assertIsInstance(token, int)
         self.assertIsInstance(distribution, Categorical)

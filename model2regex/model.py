@@ -125,7 +125,7 @@ class DGAClassifier(nn.Module):
 
         if isinstance(input_seq, collections.abc.Iterable) and \
                 not isinstance(input_seq, Tensor):
-            input_seq = self.charTensor(input_seq)
+            input_seq = self.charTensor(input_seq).to(self.device)
         embedding = self.embedding(input_seq)
         output, hidden_state = self.rnn(embedding, hidden_state)
         decoded = self.decoder(output)
