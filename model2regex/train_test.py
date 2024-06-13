@@ -8,15 +8,16 @@ class TrainedModelTest(unittest.TestCase):
 
     def setUp(self):
         models_path = pathlib.Path('models')
+        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         if not models_path.exists():
             raise unittest.SkipTest("no preset Models found.")
         self.model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
         self.model.load_state_dict(torch.load(models_path / 'model-fold-2.pth'))
-        self.model.to("cuda:0")
+        self.model.to(self.device)
+        self.model.device = self.device
 
-    @unittest.skipUnless(torch.cuda.is_available(), "No GPU available")
     def test_trained_model_input(self):
-        prediction = self.model.predict("www")
+        _ = self.model.predict("www")
 
 
 if __name__ == "__main__":
