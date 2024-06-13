@@ -11,10 +11,11 @@ class TrainedModelTest(unittest.TestCase):
         if not models_path.exists():
             raise unittest.SkipTest("no preset Models found.")
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        torch.device(self.device)
         self.model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
         self.model.device = self.device
         self.model.to(self.device)
-        self.model.load_state_dict(torch.load(models_path / 'model-fold-2.pth'))
+        self.model.load_state_dict(torch.load(models_path / 'model-fold-2.pth', map_location=self.device))
 
     def test_trained_model_input(self):
         _ = self.model.predict("www")
