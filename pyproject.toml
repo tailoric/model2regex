@@ -40,6 +40,9 @@ priority = "explicit"
 include = ["model2regex"]
 
 typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+
 
 [build-system]
 requires = ["poetry-core"]

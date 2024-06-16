@@ -13,14 +13,14 @@ class Node(TypedDict):
 
 
 class DFA:
-    def __init__(self, model: DGAClassifier, root_starter: str = "", threshold: float = 0.4):
+    def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", threshold: float = 0.4):
         root_node: Node = {'item': root_starter, 'depth': 0}
         self.graph = nx.DiGraph()
         self.graph.add_node(0, **root_node)
         self.model = model
         self.model.eval()
         self.threshold = threshold
-        self.store_path = Path("graphs")
+        self.store_path = store_path
 
     def build_tree(self, store = False) -> None:
         """
@@ -45,14 +45,14 @@ class DFA:
             if torch.any(mask):
                 indices = torch.argwhere(mask).squeeze().tolist()
             else:
-                indices = torch.topk(distribution.probs, 5).indices.squeeze().tolist()
+                indices = torch.topk(distribution.probs, 3).indices.squeeze().tolist()
             if not isinstance(indices, list):
                 indices = [indices]
             for idx in indices:
                 new_node : Node = {'item': char_map[idx], 'depth': depth + 1}
                 new_node_id = id_counter + 1
                 self.graph.add_node(new_node_id, **new_node)
-                self.graph.add_edge(node_id, new_node_id)
+                self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
                 if idx != 0:
                     nodes_to_visit.append((new_node_id, new_node))
                 else:
@@ -63,21 +63,31 @@ class DFA:
                   f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}{CLR}\n")
 
         if store:
-            self.store_path.mkdir(exist_ok=True)
-            nx.write_gml(self.graph, self.store_path / 'graph.gml.gz')
+            self.save_file()
+
+    def load_file(self, file_path: Path | None):
+        if not file_path:
+            file_path = self.store_path / 'graph.gml.gz'
+        self.graph = nx.read_gml(file_path, label='id')
+
+    def save_file(self):
+        self.store_path.mkdir(exist_ok=True)
+        nx.write_gml(self.graph, self.store_path / 'graph.gml.gz')
 
     def visualize_tree(self) -> None:
         layout = nx.bfs_layout(self.graph, 0)
+        edge_labels = {
+                tuple(edge) : attrs['probability']
+                    for *edge, attrs in self.graph.edges(data=True)
+                }
+        nx.draw_networkx_edge_labels(G=self.graph, pos=layout, edge_labels=edge_labels, verticalalignment='top')
         nx.draw(self.graph, labels=dict(self.graph.nodes(data='item')), pos=layout, with_labels=True)
         plt.show()
 
-    def build_regex(self): 
-        order = nx.dfs_predecessors(self.graph, source=0)
+    def build_regex(self) -> str: 
+        order = nx.dfs_tree(self.graph, source=0)
         end_symbol_stack = []
-        regex_str = self.graph.nodes[0]['item']
-        if len(self.graph[0])>1:
-            end_symbol_stack.append(")"+"|" * (len(self.graph[0]) -1))
-            regex_str += "("
+        regex_str = ""
         for node in order:
             data = self.graph.nodes[node]
             item = data['item']
@@ -108,7 +118,7 @@ if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     model.load_state_dict(torch.load('models/model-fold-1.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="dbz", threshold=0.4)
+    dfa = DFA(model, root_starter="www.google", threshold=0.4)
     dfa.build_tree(store=True)
     dfa.build_regex()
     dfa.visualize_tree()
