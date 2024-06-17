@@ -10,6 +10,7 @@ CLR = "\x1B[0K"
 class Node(TypedDict):
     item: str
     depth: int
+    classification: float | None
 
 
 class DFA:
@@ -51,12 +52,14 @@ class DFA:
             for idx in indices:
                 new_node : Node = {'item': char_map[idx], 'depth': depth + 1}
                 new_node_id = id_counter + 1
-                self.graph.add_node(new_node_id, **new_node)
-                self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
                 if idx != 0:
                     nodes_to_visit.append((new_node_id, new_node))
                 else:
+                    x, _, _ = self.model([starter], None)
+                    new_node['classification'] = x.round().item()
                     end_nodes += 1
+                self.graph.add_node(new_node_id, **new_node)
+                self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
                 id_counter += 1
 
             print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
@@ -80,6 +83,7 @@ class DFA:
                 tuple(edge) : attrs['probability']
                     for *edge, attrs in self.graph.edges(data=True)
                 }
+        nx.draw_networkx_labels(G=self.graph, pos=layout, labels=dict(self.graph.nodes(data='classification', default='')), verticalalignment='bottom')
         nx.draw_networkx_edge_labels(G=self.graph, pos=layout, edge_labels=edge_labels, verticalalignment='top')
         nx.draw(self.graph, labels=dict(self.graph.nodes(data='item')), pos=layout, with_labels=True)
         plt.show()
