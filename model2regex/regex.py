@@ -92,21 +92,14 @@ class DFA:
             data = self.graph.nodes[node]
             item = data['item']
             if item == "<END>" and end_symbol_stack:
-                current_stack = list(end_symbol_stack.pop())
-                regex_str += current_stack.pop()
-                if current_stack:
-                    end_symbol_stack.append("".join(current_stack))
-                elif end_symbol_stack:
-                    current_stack = list(end_symbol_stack.pop())
-                    regex_str += current_stack.pop()
-                    if current_stack:
-                        end_symbol_stack.append("".join(current_stack))
-                    
+                if "".join(end_symbol_stack[-2:]) == "|)":
+                    regex_str += end_symbol_stack.pop()
+                regex_str += end_symbol_stack.pop()
             else:
                 regex_str += item
             if len(self.graph[node]) > 1:
                 num_child = len(self.graph[node])
-                end_symbol_stack.append(")" + "|" * (num_child - 1))
+                end_symbol_stack.extend(")" + "|" * (num_child - 1))
                 regex_str += "("
         regex_str += "".join(end_symbol_stack)
         regex_str = regex_str.replace('.', '\\.')
