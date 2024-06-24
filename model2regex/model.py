@@ -67,9 +67,15 @@ class DGAClassifier(nn.Module):
             the size of the hidden layers
         nlayers: int
             the number of GRU layers
+        start_char: str
+            a character that is a prefix of the character sequences.
+            So generation from an empty string is possible
+        classify: bool
+            Whether the data needs to be classified or not.
         """
         super(DGAClassifier, self).__init__()
         self.start_char = kwargs.get("start_char", "_")
+        self.classifying = kwargs.get("classify", True)
         if self.start_char in self.vocabulary:
             raise IllegalStartChar("The start character should not be part of the default vocabulary.")
         if len(self.start_char) > 1:
@@ -109,7 +115,7 @@ class DGAClassifier(nn.Module):
 
     def forward(self,
                 input_seq: list[str] | Tensor,
-                hidden_state: Tensor | None) -> tuple[Tensor, Tensor]:
+                hidden_state: Tensor | None) -> tuple[Tensor, Tensor, Tensor]:
         """
         The forward pass of data, ideally batched.
 
@@ -129,10 +135,12 @@ class DGAClassifier(nn.Module):
         embedding = self.embedding(input_seq)
         output, hidden_state = self.rnn(embedding, hidden_state)
         decoded = self.decoder(output)
-        x = hidden_state[-1, :]
-        x = self.drop(x)
-        x = self.out(x)
-        x = self.sig(x)
+        x = torch.zeros((hidden_state[-1,:].shape[0],))
+        if self.classifying:
+            x = hidden_state[-1, :]
+            x = self.drop(x)
+            x = self.out(x)
+            x = self.sig(x)
         return x, decoded, hidden_state.detach()
 
     def predict_next_token(self, starter: str) -> tuple[int, Categorical]:

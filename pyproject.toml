@@ -17,6 +17,7 @@ tensorboard = "^2.16.2"
 matplotlib = "^3.9.0"
 pycairo = "^1.26.0"
 networkx = "^3.3"
+pydot = "^2.0.0"
 
 [tool.poetry.group.cpu]
 optional = true

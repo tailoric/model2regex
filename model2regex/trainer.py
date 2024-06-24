@@ -5,8 +5,12 @@ from torch import optim, nn
 from pathlib import Path
 from sklearn.model_selection import KFold
 from copy import deepcopy
-from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
-from .dga import generate_dataset, banjori
+if not __name__ == "__main__":
+    from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
+    from .dga import generate_dataset, banjori
+else:
+    from model import DGAClassifier, DEFAULT_MODEL_SETTINGS
+    from dga import generate_dataset, banjori
 import logging
 import random
 import torch
@@ -120,21 +124,29 @@ class ModelTrainer:
                 output, tokens, _ = self.model(input_, None)
                 shifted_input = torch.vstack((input_[1:], torch.zeros(1, loader.batch_size).to(self.device))).long()
                 loss_lm = self.criterion(tokens.permute(1, 2, 0), shifted_input.permute(1, 0))
-                loss_class = self.criterion(output.squeeze(), y.to(self.device))
-                loss = loss_lm + loss_class
+                if self.model.classifying:
+                    loss_class = self.criterion(output.squeeze(), y.to(self.device))
+                    loss = loss_lm + loss_class
+                else:
+                    loss = loss_lm
                 loss.backward()
                 e_loss += loss.item()
                 self.optimizer.step()
                 if batch in (0, total_batches // 2, total_batches-1):
                     idx = random.randint(0, len(x)-1)
-                    correct = (output.permute(1, 0).round() == y.to(self.device)).sum().item()
+                    if self.model.classifying:
+                        correct = (output.permute(1, 0).round() == y.to(self.device)).sum().item()
                     self.log.info("showing one prediction of batch: %d", batch)
                     self.log.info("inputstr: %s", x[idx])
                     self.log.info("label: %d", y[idx])
                     self.log.info("output: %d", output[idx].round().item())
-                    self.log.info("loss_lm: %f, loss_class: %f", loss_lm, loss_class)
+                    if self.model.classifying:
+                        self.log.info("loss_lm: %f, loss_class: %f", loss_lm, loss_class)
+                    else:
+                        self.log.info("loss_lm: %f, ", loss_lm)
                     self.log.info("accuracy of batch %d", batch)
-                    self.log.info("%d/%d correct.", correct, loader.batch_size)
+                    if self.model.classifying:
+                        self.log.info("%d/%d correct.", correct, loader.batch_size)
                     self.model.eval()
                     self.log.info("prediction: %s", self.model.predict("aestest"))
                     self.model.train()
@@ -160,8 +172,9 @@ class ModelTrainer:
 
 
 if __name__ == "__main__":
+
     logging.basicConfig(stream=sys.stdout)
-    model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
+    model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS, classify=False)
     dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
-    trainer = ModelTrainer(model=model, dataset=dataset)
-    trainer.train()
+    trainer = ModelTrainer(model=model, dataset=dataset, model_path=Path("models_lm"))
+    trainer.train(folds=2)

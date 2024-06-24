@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TypedDict
 from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
 import torch
+
 UP = "\x1B[3A"
 CLR = "\x1B[0K"
 
@@ -78,15 +79,8 @@ class DFA:
         nx.write_gml(self.graph, self.store_path / 'graph.gml.gz')
 
     def visualize_tree(self) -> None:
-        layout = nx.bfs_layout(self.graph, 0)
-        edge_labels = {
-                tuple(edge) : attrs['probability']
-                    for *edge, attrs in self.graph.edges(data=True)
-                }
-        nx.draw_networkx_labels(G=self.graph, pos=layout, labels=dict(self.graph.nodes(data='classification', default='')), verticalalignment='bottom')
-        nx.draw_networkx_edge_labels(G=self.graph, pos=layout, edge_labels=edge_labels, verticalalignment='top')
-        nx.draw(self.graph, labels=dict(self.graph.nodes(data='item')), pos=layout, with_labels=True)
-        plt.show()
+        gp = nx.nx_pydot.to_pydot(self.graph)
+        breakpoint()
 
     def build_regex(self) -> str: 
         order = nx.dfs_tree(self.graph, source=0)
@@ -113,9 +107,10 @@ class DFA:
 
 if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
-    model.load_state_dict(torch.load('models/model-fold-1.pth'))
+    model.load_state_dict(torch.load('models_lm/model-fold-1.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="www.google", threshold=0.4)
-    dfa.build_tree(store=True)
+    dfa = DFA(model, root_starter="", threshold=0.4)
+    #dfa.build_tree(store=True)
+    dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
     dfa.build_regex()
     dfa.visualize_tree()
