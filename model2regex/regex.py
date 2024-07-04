@@ -19,7 +19,7 @@ class Node(TypedDict):
 
 class DFA:
     def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", threshold: float = 0.4):
-        root_node: Node = {'item': root_starter, 'depth': 0, 'classification': None}
+        root_node: Node = {'item': root_starter, 'depth': 0}
         self.graph = nx.DiGraph()
         self.graph.add_node(0, **root_node)
         self.model = model
@@ -59,14 +59,14 @@ class DFA:
                 if idx != 0:
                     nodes_to_visit.append((new_node_id, new_node))
                 else:
-                    x, _, _ = self.model([root_path_symbols], None)
+                    x, _, _ = self.model([starter], None)
                     new_node['classification'] = x.round().item()
                     end_nodes += 1
                 self.graph.add_node(new_node_id, **new_node)
                 self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
                 id_counter += 1
 
-            print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {root_path_symbols}{CLR}\n"+
+            print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
                   f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}{CLR}\n")
 
         if store:
@@ -84,6 +84,7 @@ class DFA:
         """
         save the current dfa as a file called graph.gml.gz at the store path
         """
+        breakpoint()
         self.store_path.mkdir(exist_ok=True)
         nx.write_gml(self.graph, self.store_path / 'graph.gml.gz')
 
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load('models_lm/model-fold-1.pth'))
     model.to("cuda:0")
     dfa = DFA(model, root_starter="", threshold=0.4)
-    #dfa.build_tree(store=True)
+    dfa.build_tree(store=True)
     dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
     print(dfa.build_regex())
     dfa.visualize_tree()
