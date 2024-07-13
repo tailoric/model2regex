@@ -1,5 +1,5 @@
 from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
-from .regex import DFA, Node
+from .regex import DFA, Node, Threshold
 import pathlib
 import unittest
 import torch
@@ -28,7 +28,7 @@ class RegexGenTest(unittest.TestCase):
         self.model.device = self.device
         self.model.to(self.device)
         path = pathlib.Path(self.test_directory.name)
-        self.test_dfa = DFA(self.model, threshold=0.4, store_path=path, root_starter="www.google.")
+        self.test_dfa = DFA(self.model, heuristic=Threshold(), store_path=path, root_starter="www.google.")
 
     def test_build_tree(self):
         self.test_dfa.build_tree(store=True)
@@ -36,7 +36,7 @@ class RegexGenTest(unittest.TestCase):
 
     def test_loading_dfa_tree(self):
         self.test_dfa.build_tree()
-        new_dfa = DFA(self.model, threshold=0.4, store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        new_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
         new_dfa.load_file(new_dfa.store_path / 'graph.gml.gz')
         start_node = new_dfa.graph.nodes[0]
         self.assertEqual(start_node.get('item'), 'www.google.')

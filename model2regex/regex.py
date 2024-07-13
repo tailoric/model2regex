@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt
 import networkx as nx
 from pathlib import Path
-from typing import TypedDict
+from typing import NotRequired, TypedDict, Sequence, Protocol
+
+from torch.distributions import Categorical
 from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
 import torch
 
@@ -14,17 +15,41 @@ class Node(TypedDict):
     """
     item: str
     depth: int
-    classification: float | None
+    classification: NotRequired[float]
 
+class Heuristic(Protocol):
+    """
+    base class that defines the heuristic strategy for building the regex tree.
+    """
+    
+    def next_node(self, distribution: Categorical) -> Sequence[int]:
+        """
+        return the indices for the char_map of the distribution to add to the tree.
+        """
+        ...
+
+class Threshold(Heuristic):
+
+    def __init__(self, threshold: float = 0.4, topk: int = 3) -> None:
+        self.threshold = threshold
+        self.topk = topk
+
+    def next_node(self, distribution: Categorical) -> Sequence[int]:
+        mask = distribution.probs > self.threshold
+        if torch.any(mask):
+            indices = torch.argwhere(mask).squeeze().tolist()
+        else:
+            indices = torch.topk(distribution.probs, self.topk).indices.squeeze().tolist()
+        return indices
 
 class DFA:
-    def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", threshold: float = 0.4):
+    def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", heuristic: Heuristic = Threshold()):
         root_node: Node = {'item': root_starter, 'depth': 0}
         self.graph = nx.DiGraph()
         self.graph.add_node(0, **root_node)
         self.model = model
         self.model.eval()
-        self.threshold = threshold
+        self.heuristic = heuristic
         self.store_path = store_path
 
     def build_tree(self, store = False) -> None:
@@ -46,11 +71,7 @@ class DFA:
                 parent: list[int] = list(self.graph.predecessors(parent[0]))
             starter = "".join(reversed(root_path_symbols))
             _, distribution = self.model.predict_next_token(starter)
-            mask = distribution.probs > self.threshold
-            if torch.any(mask):
-                indices = torch.argwhere(mask).squeeze().tolist()
-            else:
-                indices = torch.topk(distribution.probs, 3).indices.squeeze().tolist()
+            indices = self.heuristic.next_node(distribution)
             if not isinstance(indices, list):
                 indices = [indices]
             for idx in indices:
@@ -84,7 +105,6 @@ class DFA:
         """
         save the current dfa as a file called graph.gml.gz at the store path
         """
-        breakpoint()
         self.store_path.mkdir(exist_ok=True)
         nx.write_gml(self.graph, self.store_path / 'graph.gml.gz')
 
@@ -136,7 +156,7 @@ if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     model.load_state_dict(torch.load('models_lm/model-fold-1.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="", threshold=0.4)
+    dfa = DFA(model, root_starter="")
     dfa.build_tree(store=True)
     dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
     print(dfa.build_regex())
