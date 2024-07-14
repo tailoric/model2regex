@@ -42,6 +42,19 @@ class Threshold(Heuristic):
             indices = torch.topk(distribution.probs, self.topk).indices.squeeze().tolist()
         return indices
 
+class Entropy(Heuristic):
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def next_node(self, distribution: Categorical) -> Sequence[int]:
+        entropy = - torch.sum(distribution.probs * distribution.probs.log()) # type: ignore
+        if entropy < self.threshold:
+            mask = distribution.probs >= torch.quantile(distribution.probs, 0.75, interpolation='nearest')
+        else:
+            mask = distribution.probs >= torch.quantile(distribution.probs, 0.25, interpolation='nearest')
+        return torch.argwhere(mask).squeeze().tolist()
+
+
 class DFA:
     def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", heuristic: Heuristic = Threshold()):
         root_node: Node = {'item': root_starter, 'depth': 0}
@@ -88,7 +101,7 @@ class DFA:
                 id_counter += 1
 
             print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
-                  f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}{CLR}\n")
+                  f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
 
         if store:
             self.save_file()
@@ -156,7 +169,7 @@ if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     model.load_state_dict(torch.load('models_lm/model-fold-1.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="")
+    dfa = DFA(model, root_starter="", heuristic=Entropy(threshold=2.8))
     dfa.build_tree(store=True)
     dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
     print(dfa.build_regex())
