@@ -2,9 +2,9 @@
 This file works as a repository of dga algorithms to import for the prototype
 """
 from random import Random
-from typing import Callable, Literal
+from typing import Callable, Literal, Sequence
 from torch.utils.data import Dataset
-from itertools import repeat
+from itertools import repeat, batched
 from pathlib import Path
 import pandas as pd
 
@@ -22,7 +22,6 @@ class DGADataset(Dataset):
     def __getitem__(self, idx) -> tuple[str, Literal[0, 1]]:
         return self.data[idx]
 
-
 def simple_dga(seed: str) -> str:
     rand = Random(seed)
     digits = '0123456789'
@@ -39,6 +38,22 @@ def banjori(domain: str) -> str:
     dl[3] = map_to_lowercase_letter(dl[1] + dl[2] + dl[3])
     return ''.join([chr(x) for x in dl])
 
+
+def generate_split_data(
+        algorithm: Callable[[str], str],
+        seed: str,
+        size = 2_000_00,
+        split_size = 4
+        ) -> Sequence[Dataset]:
+    datasets = []
+    splits = [[''.join(batch)] for batch in batched(seed, n=split_size)]
+    datasets.extend(splits)
+    while len(datasets[0]) < size:
+        seed = algorithm(seed)
+        splits = [''.join(batch) for batch in batched(seed, n=split_size)]
+        for idx,split in enumerate(splits):
+            datasets[idx].append(split)
+    return list(map(lambda d: DGADataset(d, real_domains=[]), datasets))
 
 def generate_dataset(algorithm: Callable[[str], str],
                      seed: str,

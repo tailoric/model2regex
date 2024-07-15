@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 from torch.utils.data import Dataset, SubsetRandomSampler, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch import optim, nn
@@ -7,10 +7,10 @@ from sklearn.model_selection import KFold
 from copy import deepcopy
 if not __name__ == "__main__":
     from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
-    from .dga import generate_dataset, banjori
+    from .dga import generate_dataset, banjori, generate_split_data
 else:
     from model import DGAClassifier, DEFAULT_MODEL_SETTINGS
-    from dga import generate_dataset, banjori
+    from dga import generate_dataset, banjori, generate_split_data
 import logging
 import random
 import torch
@@ -69,6 +69,14 @@ class ModelTrainer:
         self.log = logging.getLogger(__name__)
         self.log.setLevel(kwargs.get("log_level", logging.INFO))
         self.model.to(self.device)
+
+    def multi_train(self, datasets: Sequence[Dataset]):
+        untrained_model = deepcopy(self.model.state_dict())
+        for number, data in enumerate(datasets, start=1):
+            self.model.load_state_dict(state_dict=untrained_model)
+            loader = DataLoader(dataset=data, batch_size=1000)
+            self.train_fold(loader)
+            torch.save(self.model.state_dict(), self.models_path / f'model-dataset-no-{number}.pth')
 
     def train(self, *, folds=5, epochs=3, save_model=True):
         """
@@ -148,7 +156,7 @@ class ModelTrainer:
                     if self.model.classifying:
                         self.log.info("%d/%d correct.", correct, loader.batch_size)
                     self.model.eval()
-                    self.log.info("prediction: %s", self.model.predict("aestest"))
+                    self.log.info("prediction: %s", self.model.predict(""))
                     self.model.train()
                     self.log.info("--------------------------------------------")
 
@@ -175,6 +183,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(stream=sys.stdout)
     model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS, classify=False)
-    dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
-    trainer = ModelTrainer(model=model, dataset=dataset, model_path=Path("models_lm"))
-    trainer.train(folds=2)
+    #dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
+    datasets = generate_split_data(banjori,'earnestnessbiophysicalohax.com') 
+    trainer = ModelTrainer(model=model, dataset=datasets[0], model_path=Path("models_split"))
+    trainer.multi_train(datasets)
