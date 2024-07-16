@@ -5,6 +5,8 @@ from torch import optim, nn
 from pathlib import Path
 from sklearn.model_selection import KFold
 from copy import deepcopy
+
+from model2regex.dga import DGADataset
 if not __name__ == "__main__":
     from .model import DGAClassifier, DEFAULT_MODEL_SETTINGS
     from .dga import generate_dataset, banjori, generate_split_data
@@ -183,7 +185,11 @@ if __name__ == "__main__":
 
     logging.basicConfig(stream=sys.stdout)
     model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS, classify=False)
-    #dataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
-    datasets = generate_split_data(banjori,'earnestnessbiophysicalohax.com') 
-    trainer = ModelTrainer(model=model, dataset=datasets[0], model_path=Path("models_split"))
-    trainer.multi_train(datasets)
+    dataset : DGADataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
+    breakpoint()
+    dataset.data = list((''.join(reversed(data)), cl) for data,cl in dataset.data)
+    #datasets = generate_split_data(banjori,'earnestnessbiophysicalohax.com') 
+    trainer = ModelTrainer(model=model, dataset=dataset, model_path=Path("models_backwards"))
+    loader = DataLoader(dataset=dataset, batch_size=1000)
+    trainer.train_fold(loader)
+    torch.save(trainer.model.state_dict(), trainer.models_path / f'model-backwards.pth')

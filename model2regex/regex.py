@@ -4,6 +4,7 @@ from typing import NotRequired, TypedDict, Sequence, Protocol
 
 from torch.distributions import Categorical
 from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
+import re
 import torch
 
 UP = "\x1B[3A"
@@ -39,7 +40,8 @@ class Threshold(Heuristic):
         if torch.any(mask):
             indices = torch.argwhere(mask).squeeze().tolist()
         else:
-            indices = torch.topk(distribution.probs, self.topk).indices.squeeze().tolist()
+            mask = distribution.probs >= torch.quantile(distribution.probs, 0.75, interpolation='nearest')
+            indices = torch.argwhere(mask).squeeze().tolist()
         return indices
 
 class Entropy(Heuristic):
@@ -49,9 +51,9 @@ class Entropy(Heuristic):
     def next_node(self, distribution: Categorical) -> Sequence[int]:
         entropy = - torch.sum(distribution.probs * distribution.probs.log()) # type: ignore
         if entropy < self.threshold:
-            mask = distribution.probs >= torch.quantile(distribution.probs, 0.75, interpolation='nearest')
+            mask = distribution.probs > torch.quantile(distribution.probs, 0.75, interpolation='linear')
         else:
-            mask = distribution.probs >= torch.quantile(distribution.probs, 0.25, interpolation='nearest')
+            mask = distribution.probs >= torch.quantile(distribution.probs, 0.30, interpolation='nearest')
         return torch.argwhere(mask).squeeze().tolist()
 
 
@@ -167,10 +169,13 @@ class DFA:
 
 if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
-    model.load_state_dict(torch.load('models_lm/model-fold-1.pth'))
+    model.load_state_dict(torch.load('models_backwards/model-backwards.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="", heuristic=Entropy(threshold=2.8))
-    dfa.build_tree(store=True)
+    dfa = DFA(model, root_starter="", heuristic=Threshold())
+    #dfa.build_tree(store=True)
     dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
-    print(dfa.build_regex())
+    regex = dfa.build_regex()
+    #regex = ''.join(reversed(regex))
+    print(regex)
+    dga_regex = re.compile(regex)
     dfa.visualize_tree()
