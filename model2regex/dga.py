@@ -39,6 +39,33 @@ def banjori(domain: str) -> str:
     return ''.join([chr(x) for x in dl])
 
 
+def create_file(
+        algorithm: Callable[[str], str],
+        seed: str,
+        size: int,
+        file_path: str | Path
+        ) -> None:
+    """
+    Generate a txt file at the specified path
+
+    Parameter
+    _________
+    
+    algorithm: Callable[[str], str]
+        The DGA function as a callable that needs to take in a seed and return the next domain.
+    seed: str
+        The seed for the dga generation.
+    file_path: str | Path
+        The path to store the generated file at
+    """
+    path = Path(file_path)
+    with path.open('w') as seed_file:
+        seed_file.write(seed + '\n')
+        for _ in range(size):
+            next_domain = algorithm(seed)
+            seed_file.write(next_domain + '\n')
+            seed = next_domain
+
 def generate_split_data(
         algorithm: Callable[[str], str],
         seed: str,

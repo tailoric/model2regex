@@ -178,4 +178,13 @@ if __name__ == "__main__":
     #regex = ''.join(reversed(regex))
     print(regex)
     dga_regex = re.compile(regex)
-    dfa.visualize_tree()
+    matched = 0
+    with open('banjori.txt', 'r') as test_file:
+        lines = test_file.readlines()
+        for line in lines:
+            rev = ''.join(reversed(line[:-1]))
+            match = dga_regex.match(rev)
+            if match:
+                matched += 1
+    print(f"matched {matched} out of {len(lines)}")
+    #dfa.visualize_tree()
