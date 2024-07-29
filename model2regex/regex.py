@@ -1,6 +1,6 @@
 import networkx as nx
 from pathlib import Path
-from typing import NotRequired, TypedDict, Sequence, Protocol
+from typing import NotRequired, Tuple, TypedDict, Sequence, Protocol
 
 from torch.distributions import Categorical
 from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
@@ -15,6 +15,7 @@ class Node(TypedDict):
     dict struct for typing node information in the DFA
     """
     item: str
+    type: str
     depth: int
     classification: NotRequired[float]
 
@@ -23,7 +24,7 @@ class Heuristic(Protocol):
     base class that defines the heuristic strategy for building the regex tree.
     """
     
-    def next_node(self, distribution: Categorical) -> Sequence[int]:
+    def next_node(self, distribution: Categorical) -> Tuple[Sequence[int], str]:
         """
         return the indices for the char_map of the distribution to add to the tree.
         """
@@ -31,35 +32,39 @@ class Heuristic(Protocol):
 
 class Threshold(Heuristic):
 
-    def __init__(self, threshold: float = 0.4, topk: int = 3) -> None:
+    def __init__(self, threshold: float = 0.4, quantile: float = 0.5) -> None:
         self.threshold = threshold
-        self.topk = topk
+        self.quantile = quantile
 
-    def next_node(self, distribution: Categorical) -> Sequence[int]:
+    def next_node(self, distribution: Categorical) -> Tuple[Sequence[int], str]:
         mask = distribution.probs > self.threshold
         if torch.any(mask):
             indices = torch.argwhere(mask).squeeze().tolist()
+            item_type = 'simple'
         else:
-            mask = distribution.probs >= torch.quantile(distribution.probs, 0.75, interpolation='nearest')
+            mask = distribution.probs >= torch.quantile(distribution.probs, self.quantile, interpolation='nearest')
             indices = torch.argwhere(mask).squeeze().tolist()
-        return indices
+            item_type = 'group'
+        return indices, item_type
 
 class Entropy(Heuristic):
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
 
-    def next_node(self, distribution: Categorical) -> Sequence[int]:
+    def next_node(self, distribution: Categorical) -> Tuple[Sequence[int], str]:
         entropy = - torch.sum(distribution.probs * distribution.probs.log()) # type: ignore
         if entropy < self.threshold:
+            item_type = 'simple'
             mask = distribution.probs > torch.quantile(distribution.probs, 0.75, interpolation='linear')
         else:
+            item_type = 'group'
             mask = distribution.probs >= torch.quantile(distribution.probs, 0.30, interpolation='nearest')
-        return torch.argwhere(mask).squeeze().tolist()
+        return torch.argwhere(mask).squeeze().tolist(), item_type
 
 
 class DFA:
     def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", heuristic: Heuristic = Threshold()):
-        root_node: Node = {'item': root_starter, 'depth': 0}
+        root_node: Node = {'item': root_starter, 'depth': 0, 'type': 'root'}
         self.graph = nx.DiGraph()
         self.graph.add_node(0, **root_node)
         self.model = model
@@ -86,11 +91,11 @@ class DFA:
                 parent: list[int] = list(self.graph.predecessors(parent[0]))
             starter = "".join(reversed(root_path_symbols))
             _, distribution = self.model.predict_next_token(starter)
-            indices = self.heuristic.next_node(distribution)
+            indices, item_type = self.heuristic.next_node(distribution)
             if not isinstance(indices, list):
                 indices = [indices]
             for idx in indices:
-                new_node : Node = {'item': char_map[idx], 'depth': depth + 1}
+                new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
                 new_node_id = id_counter + 1
                 if idx != 0:
                     nodes_to_visit.append((new_node_id, new_node))
@@ -116,14 +121,21 @@ class DFA:
             file_path = self.store_path / 'graph.gml.gz'
         self.graph = nx.read_gml(file_path, label='id')
 
-    def save_file(self):
+    def save_file(self, store_path: str | Path | None = None, /):
         """
         save the current dfa as a file called graph.gml.gz at the store path
         """
-        self.store_path.mkdir(exist_ok=True)
-        nx.write_gml(self.graph, self.store_path / 'graph.gml.gz')
+        if not store_path:
+            store_path = self.store_path / 'graph.gml.gz'
+        else:
+            store_path = Path(store_path)
+        if store_path.is_dir():
+            store_path.mkdir(exist_ok=True)
+        else:
+            store_path.parent.mkdir(exist_ok=True)
+        nx.write_gml(self.graph, store_path)
 
-    def visualize_tree(self) -> None:
+    def visualize_tree(self, store_path: Path | str = Path('graphs/tree.svg')) -> None:
         """
         generate an svg visualization using pydot
         """
@@ -133,7 +145,7 @@ class DFA:
         for edge in gp.get_edges():
             edge.set_label(edge.get('probability'))
 
-        gp.write_svg(Path('graphs/tree.svg'))
+        gp.write_svg(store_path)
 
     def build_regex(self) -> str: 
         """
@@ -156,8 +168,10 @@ class DFA:
                     regex_str += end_symbol_stack.pop()
             if item == "<END>" and end_symbol_stack:
                 regex_str += end_symbol_stack.pop()
+            elif item == "<END>":
+                continue
             else:
-                regex_str += item
+                regex_str += item if item != '.' else '\\.'
             if num_child > 1:
                 regex_str += "("
                 end_symbol_stack.extend(")"+ ("|" * (num_child - 1)))
@@ -172,7 +186,7 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load('models_backwards/model-backwards.pth'))
     model.to("cuda:0")
     dfa = DFA(model, root_starter="", heuristic=Threshold())
-    #dfa.build_tree(store=True)
+    dfa.build_tree(store=True)
     dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
     regex = dfa.build_regex()
     #regex = ''.join(reversed(regex))
@@ -186,5 +200,5 @@ if __name__ == "__main__":
             match = dga_regex.match(rev)
             if match:
                 matched += 1
-    print(f"matched {matched} out of {len(lines)}")
-    #dfa.visualize_tree()
+    print(f"matched {matched} out of {len(lines)} ({matched/len(lines):%})")
+    dfa.visualize_tree()

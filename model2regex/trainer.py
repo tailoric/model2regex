@@ -132,7 +132,7 @@ class ModelTrainer:
                 self.optimizer.zero_grad()
                 input_ = self.model.charTensor(x).to(self.device)
                 output, tokens, _ = self.model(input_, None)
-                shifted_input = torch.vstack((input_[1:], torch.zeros(1, loader.batch_size).to(self.device))).long()
+                shifted_input = torch.vstack((input_[1:], torch.zeros(1, len(x)).to(self.device))).long()
                 loss_lm = self.criterion(tokens.permute(1, 2, 0), shifted_input.permute(1, 0))
                 if self.model.classifying:
                     loss_class = self.criterion(output.squeeze(), y.to(self.device))
