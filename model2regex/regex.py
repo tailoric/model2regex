@@ -1,3 +1,4 @@
+from random import choice
 import networkx as nx
 from pathlib import Path
 from typing import NotRequired, Tuple, TypedDict, Sequence, Protocol
@@ -83,29 +84,44 @@ class DFA:
         while nodes_to_visit:
             node_id, data = nodes_to_visit.pop(0)
             depth = data.get('depth')
-            root_path_symbols: list[str] = [data.get('item')]
+            if data['type'] == 'group':
+                root_path_symbols: list[str] = [choice(data.get('item'))]
+            else:
+                root_path_symbols: list[str] = [data.get('item')]
             parent  = list(self.graph.predecessors(node_id))
             while parent:
                 parent_node: Node = self.graph.nodes[parent[0]]
-                root_path_symbols.append(parent_node.get('item'))
+                if parent_node['type'] in ('simple','root'):
+                    root_path_symbols.append(parent_node.get('item'))
+                else:
+                    root_path_symbols.append(choice(parent_node.get('item')))
                 parent: list[int] = list(self.graph.predecessors(parent[0]))
             starter = "".join(reversed(root_path_symbols))
             _, distribution = self.model.predict_next_token(starter)
             indices, item_type = self.heuristic.next_node(distribution)
             if not isinstance(indices, list):
                 indices = [indices]
-            for idx in indices:
-                new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
+            if item_type == "group":
+                item = [char_map[x] for x in indices]
+                new_node : Node = { 'item': item, 'depth': depth + 1, 'type':item_type}
                 new_node_id = id_counter + 1
-                if idx != 0:
-                    nodes_to_visit.append((new_node_id, new_node))
-                else:
-                    x, _, _ = self.model([starter], None)
-                    new_node['classification'] = x.round().item()
-                    end_nodes += 1
                 self.graph.add_node(new_node_id, **new_node)
-                self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
-                id_counter += 1
+                mean = torch.mean(distribution.probs[indices])
+                self.graph.add_edge(node_id, new_node_id, probability=round(mean.item(), ndigits=2))
+                nodes_to_visit.append((new_node_id, new_node))
+            else:
+                for idx in indices:
+                    new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
+                    new_node_id = id_counter + 1
+                    if idx != 0:
+                        nodes_to_visit.append((new_node_id, new_node))
+                    else:
+                        x, _, _ = self.model([starter], None)
+                        new_node['classification'] = x.round().item()
+                        end_nodes += 1
+                    self.graph.add_node(new_node_id, **new_node)
+                    self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
+            id_counter += 1
 
             print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
                   f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
@@ -159,6 +175,7 @@ class DFA:
         for node in order:
             data = self.graph.nodes[node]
             item = data['item']
+            item_type = data['type']
             num_child = len(self.graph[node])
             # we came back out of an end node and need to apply all the closing brackets
             if previous_depth > data['depth'] and regex_str[-1] == ")":
@@ -171,7 +188,10 @@ class DFA:
             elif item == "<END>":
                 continue
             else:
-                regex_str += item if item != '.' else '\\.'
+                if item_type == 'simple':
+                    regex_str += item if item != '.' else '\\.'
+                elif item_type == 'group':
+                    regex_str += f"[{''.join(item)}]"
             if num_child > 1:
                 regex_str += "("
                 end_symbol_stack.extend(")"+ ("|" * (num_child - 1)))
