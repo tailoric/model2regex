@@ -121,7 +121,7 @@ class DFA:
                         end_nodes += 1
                     self.graph.add_node(new_node_id, **new_node)
                     self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
-            id_counter += 1
+                    id_counter += 1
 
             print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
                   f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
@@ -190,7 +190,7 @@ class DFA:
             else:
                 if item_type == 'simple':
                     regex_str += item if item != '.' else '\\.'
-                elif item_type == 'group':
+                if item_type == 'group':
                     regex_str += f"[{''.join(item)}]"
             if num_child > 1:
                 regex_str += "("
