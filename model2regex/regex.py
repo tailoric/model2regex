@@ -109,6 +109,7 @@ class DFA:
                 mean = torch.mean(distribution.probs[indices])
                 self.graph.add_edge(node_id, new_node_id, probability=round(mean.item(), ndigits=2))
                 nodes_to_visit.append((new_node_id, new_node))
+                id_counter += 1
             else:
                 for idx in indices:
                     new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
