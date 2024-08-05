@@ -14,7 +14,8 @@ def gen_dataset(func: Callable[[], str], count: int, *, store_path: Path|None = 
         store_path.write_text('\n'.join(dataset))
     return dataset
 
-def train_multi(data: Path, model_path: Path):
+def train_multi(data: Path, model_path: Path, **kwargs):
+    device = kwargs.get("device", "cuda:0")
     with data.open() as ds:
         dataset_table = []
         while line := ds.readline():
@@ -24,21 +25,22 @@ def train_multi(data: Path, model_path: Path):
             for idx, split in enumerate(splits):
                 dataset_table[idx].append(split or '')
         
-        model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False)
+        model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False, device=device)
         datasets = list(map(lambda d: DGADataset(d, real_domains=[]), dataset_table))
-        trainer = ModelTrainer(model=model, dataset=datasets[0],model_path=model_path)
+        trainer = ModelTrainer(model=model, dataset=datasets[0],model_path=model_path, device=device)
         trainer.multi_train(datasets)
         return trainer
 
 def build_regex(dataset: Path, model_path: Path, **kwargs):
-    model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False)
-    model.to(kwargs.get('device', 'cuda:0'))
+    device = kwargs.get('device', 'cuda:0')
+    model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False, device=device)
+    model.to(device)
     graphing_path = kwargs.get('graphing_path', Path('graphs'))
     visualize = kwargs.get('visualize', False)
     regex_list = []
     heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.1, quantile=0.5))
     for num, model_path in enumerate(model_path.iterdir(), start=1):
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
         dfa.build_tree()
         regex = dfa.build_regex()
@@ -61,6 +63,7 @@ if __name__ == "__main__":
     dataset_group.add_argument('--store-dataset', action='store_true', help="Set this to specify that the dataset should be stored after generating it.")
     dataset_group.add_argument('--count', type=int, default=100000, help="The amount of entries to create when generating the data.")
     parser.add_argument('data', type=Path, help="Path to the dataset as a txt file with one entry per line, or the path to store the data at when gen-dataset is set.")
+    parser.add_argument('--device', help="The device used for the model, defaults to cuda:0", default="cuda:0")
     arguments = parser.parse_args()
     dataset_gen_flag = 'gen-dataset' in arguments.steps if arguments.steps else False
     train_model_flag = 'train-models' in arguments.steps if arguments.steps else False
@@ -76,9 +79,9 @@ if __name__ == "__main__":
         gen_dataset(func, arguments.count, store_path=arguments.data)
     if train_model_flag:
         logging.basicConfig()
-        train_multi(arguments.data, arguments.model_path)
+        train_multi(arguments.data, arguments.model_path, device=arguments.device)
 
-    regex = build_regex(arguments.data, arguments.model_path, visualize=True)
+    regex = build_regex(arguments.data, arguments.model_path, visualize=True, device=arguments.device)
 
     if test_regex_flag:
         matched = 0

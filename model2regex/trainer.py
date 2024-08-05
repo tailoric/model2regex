@@ -186,7 +186,6 @@ if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout)
     model: DGAClassifier = DGAClassifier(**DEFAULT_MODEL_SETTINGS, classify=False)
     dataset : DGADataset = generate_dataset(banjori, 'earnestnessbiophysicalohax.com', real_domains=[])
-    breakpoint()
     dataset.data = list((''.join(reversed(data)), cl) for data,cl in dataset.data)
     #datasets = generate_split_data(banjori,'earnestnessbiophysicalohax.com') 
     trainer = ModelTrainer(model=model, dataset=dataset, model_path=Path("models_backwards"))
