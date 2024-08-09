@@ -45,7 +45,7 @@ class Threshold(Heuristic):
         else:
             mask = distribution.probs >= torch.quantile(distribution.probs, self.quantile, interpolation='nearest')
             indices = torch.argwhere(mask).squeeze().tolist()
-            item_type = 'group'
+            item_type = 'simple'
         return indices, item_type
 
 class Entropy(Heuristic):
@@ -58,7 +58,7 @@ class Entropy(Heuristic):
             item_type = 'simple'
             mask = distribution.probs > torch.quantile(distribution.probs, 0.75, interpolation='linear')
         else:
-            item_type = 'group'
+            item_type = 'simple'
             mask = distribution.probs >= torch.quantile(distribution.probs, 0.30, interpolation='nearest')
         return torch.argwhere(mask).squeeze().tolist(), item_type
 
@@ -84,10 +84,7 @@ class DFA:
         while nodes_to_visit:
             node_id, data = nodes_to_visit.pop(0)
             depth = data.get('depth')
-            if data['type'] == 'group':
-                root_path_symbols: list[str] = [choice(data.get('item'))]
-            else:
-                root_path_symbols: list[str] = [data.get('item')]
+            root_path_symbols = [choice(data.get('item')) if data.get('type') == 'group' else data.get('item')]
             parent  = list(self.graph.predecessors(node_id))
             while parent:
                 parent_node: Node = self.graph.nodes[parent[0]]
@@ -124,8 +121,8 @@ class DFA:
                     self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
                     id_counter += 1
 
-            print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
-                  f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
+            #print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
+            #      f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
 
         if store:
             self.save_file()
@@ -168,39 +165,25 @@ class DFA:
         """
         build a regex from the current DFA tree.
         """
-        order = nx.dfs_tree(self.graph, source=0)
-        # a stack of symbols we keep track of so we can apply them whenever we get back out from an end node
-        end_symbol_stack = []
-        regex_str = ""
-        previous_depth = 0
-        for node in order:
-            data = self.graph.nodes[node]
-            item = data['item']
-            item_type = data['type']
-            num_child = len(self.graph[node])
-            # we came back out of an end node and need to apply all the closing brackets
-            if previous_depth > data['depth'] and regex_str[-1] == ")":
-                regex_str += end_symbol_stack.pop()
-                # we apply all possible closing brackets and a | to the regex string
-                while end_symbol_stack and regex_str[-1] != "|":
-                    regex_str += end_symbol_stack.pop()
-            if item == "<END>" and end_symbol_stack:
-                regex_str += end_symbol_stack.pop()
-            elif item == "<END>":
-                continue
-            else:
-                if item_type == 'simple':
-                    regex_str += item if item != '.' else '\\.'
-                if item_type == 'group':
-                    regex_str += f"[{''.join(item)}]"
-            if num_child > 1:
-                regex_str += "("
-                end_symbol_stack.extend(")"+ ("|" * (num_child - 1)))
-            previous_depth = data['depth']
-        regex_str += "".join(end_symbol_stack)
-        return regex_str
-                
+        return self._build_from_subgraph(self.graph, 0)
 
+    def _build_from_subgraph(self, subgraph, source) -> str:
+        regex_str = ""
+        nb = nx.neighbors(subgraph, source)
+        for node in nb:
+            data = self.graph.nodes[node]
+            degree = (self.graph.degree[node] - 1) # remove one because of incoming parent node
+            if data['item'] == "<END>":
+                continue
+            if degree > 1:
+                regex_str += f"{data['item']}({self._build_from_subgraph(self.graph, node)})|"
+            elif degree == 1:
+                regex_str += f"{data['item']}{self._build_from_subgraph(self.graph, node)}|"
+            else:
+                regex_str += f"{data['item']}|"
+        if regex_str and regex_str[-1] == "|":
+            regex_str = regex_str[:-1]
+        return regex_str
 
 if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)

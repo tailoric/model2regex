@@ -18,6 +18,7 @@ class RegexGenTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.test_directory.cleanup()
 
+
     def setUp(self):
         models_path = pathlib.Path('models')
         if not models_path.exists():
@@ -43,6 +44,34 @@ class RegexGenTest(unittest.TestCase):
         self.assertEqual(start_node.get('depth'), 0)
         
 
+    def test_build_regex_max_two_children_max_depth_two(self):
+        simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_two_children.gml"))
+        simple_dfa.visualize_tree(pathlib.Path('test.svg'))
+        regex = simple_dfa.build_regex()
+        self.assertEqual("a(a|b)|b(a|b)|cc", regex)
+
+    def test_build_regex_max_three_children_max_depth_two(self):
+        simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_three_children_depth_two.gml"))
+        simple_dfa.visualize_tree(pathlib.Path('test.svg'))
+        regex = simple_dfa.build_regex()
+        self.assertEqual("a(a|b|c)|b(a|b)|cc", regex)
+
+    def test_build_regex_max_two_children_depth_three(self):
+        simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_depth_three.gml"))
+        simple_dfa.visualize_tree(pathlib.Path('test.svg'))
+        regex = simple_dfa.build_regex()
+        self.assertEqual("a(a(a|b)|b(a|b))|b(a|b)", regex)
+
+    def test_build_regex_max_two_children_depth_four_center(self):
+        simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_depth_four_middle.gml"))
+        simple_dfa.visualize_tree(pathlib.Path('test.svg'))
+        regex = simple_dfa.build_regex()
+        self.assertEqual("a(a(a|b)|b(a(a|b)|b))|b(a|b)", regex)
+        
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
