@@ -85,15 +85,15 @@ if __name__ == "__main__":
 
     if test_regex_flag:
         matched = 0
-        count = 0
         print(regex)
         pattern = re.compile(regex)
         with arguments.data.open() as ds:
-            while line := ds.readline():
-                count += 1
-                if pattern.match(line[:-1]):
+            lines = ds.readlines()
+            for line in lines:
+                match = pattern.match(line)
+                if match:
                     matched += 1
 
-        print(f"Matched {matched:,}/{count:,} ({matched/count:%})")
+            print(f"Matched {matched:,}/{len(lines):,} ({matched/len(lines):%})")
     print(regex)
     
