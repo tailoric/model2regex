@@ -31,6 +31,8 @@ jobs:
     - name: Install dependencies
       run: |
         poetry install
+    - name: Setup Graphviz
+      uses: ts-graphviz/setup-graphviz@v2
     - name: Run unittests
       run: |
         poetry run python -m unittest discover . -p "*_test.py"
