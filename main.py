@@ -43,6 +43,7 @@ def build_regex(dataset: Path, model_path: Path, **kwargs):
         model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
         dfa.build_tree()
+        dfa.simplify_tree()
         regex = dfa.build_regex()
         dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
         regex_list.append(regex)

@@ -1,4 +1,6 @@
+from math import log
 from random import choice
+from itertools import repeat
 import networkx as nx
 from pathlib import Path
 from typing import NotRequired, Tuple, TypedDict, Sequence, Protocol
@@ -126,6 +128,33 @@ class DFA:
 
         if store:
             self.save_file()
+    def simplify_tree(self, iterations:int = 3):
+        layers = nx.bfs_layers(self.graph, 0)
+        layers = reversed(list(layers))
+        for layer in layers:
+            for node in layer:
+                if node not in self.graph:
+                    continue
+                parent = next(self.graph.predecessors(node))
+                successors = list(self.graph.successors(parent))
+                if len(successors) > 1:
+                    KL = 0
+                    for child in successors:
+                        edge = self.graph.edges[parent,child]
+                        KL += edge['probability'] * log((1/len(successors))/edge['probability'])
+                    if KL < 0.1:
+                        old_node = self.graph.nodes[node]
+                        new_node: Node = {'item': [self.graph.nodes[child]['item'] for child in successors], 
+                                          'type': 'group',
+                                          'depth': old_node['depth'] }
+                        outgoing = []
+                        for child in successors:
+                            outgoing.extend(self.graph.neighbors(child))
+                        self.graph.remove_nodes_from(successors)
+                        self.graph.add_node(node, **new_node)
+                        self.graph.add_edges_from(zip(repeat(node), outgoing))
+                        self.graph.add_edge(parent, node)
+
 
     def load_file(self, file_path: Path | None):
         """
