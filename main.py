@@ -1,6 +1,7 @@
 from pathlib import Path
 from model2regex import *
 from itertools import batched
+from collections import defaultdict
 import domain_gen
 import re
 from argparse import ArgumentParser
@@ -17,17 +18,16 @@ def gen_dataset(func: Callable[[], str], count: int, *, store_path: Path|None = 
 def train_multi(data: Path, model_path: Path, **kwargs):
     device = kwargs.get("device", "cuda:0")
     with data.open() as ds:
-        dataset_table = []
+        dataset_table = defaultdict(list)
         while line := ds.readline():
             splits = [''.join(batch) for batch in batched(line[:-1], n=4)]
-            if not dataset_table:
-                dataset_table = [[] for _ in range(len(splits))]
             for idx, split in enumerate(splits):
                 dataset_table[idx].append(split or '')
         
         model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False, device=device)
-        datasets = list(map(lambda d: DGADataset(d, real_domains=[]), dataset_table))
+        datasets = list(map(lambda d: DGADataset(d, real_domains=[]), dataset_table.values()))
         trainer = ModelTrainer(model=model, dataset=datasets[0],model_path=model_path, device=device)
+        breakpoint()
         trainer.multi_train(datasets)
         return trainer
 
