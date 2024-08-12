@@ -137,25 +137,29 @@ class DFA:
             for node in layer:
                 if node not in self.graph:
                     continue
-                parent = next(self.graph.predecessors(node))
-                successors = list(self.graph.successors(parent))
-                if len(successors) > 1:
-                    KL = 0
-                    for child in successors:
-                        edge = self.graph.edges[parent,child]
-                        KL += edge['probability'] * log((1/len(successors))/edge['probability'])
-                    if KL < 0.1:
-                        old_node = self.graph.nodes[node]
-                        new_node: Node = {'item': [self.graph.nodes[child]['item'] for child in successors], 
-                                          'type': 'group',
-                                          'depth': old_node['depth'] }
-                        outgoing = []
+                try:
+                    parent = next(self.graph.predecessors(node))
+                    successors = list(self.graph.successors(parent))
+                    if len(successors) > 1:
+                        KL = 0
                         for child in successors:
-                            outgoing.extend(self.graph.neighbors(child))
-                        self.graph.remove_nodes_from(successors)
-                        self.graph.add_node(node, **new_node)
-                        self.graph.add_edges_from(zip(repeat(node), outgoing))
-                        self.graph.add_edge(parent, node)
+                            edge = self.graph.edges[parent,child]
+                            KL += edge['probability'] * log((1/len(successors))/edge['probability'])
+                        if KL < 0.1:
+                            old_node = self.graph.nodes[node]
+                            new_node: Node = {'item': [self.graph.nodes[child]['item'] for child in successors], 
+                                              'type': 'group',
+                                              'depth': old_node['depth'] }
+                            outgoing = []
+                            for child in successors:
+                                outgoing.extend(self.graph.neighbors(child))
+                            edge_data = self.graph.edges[parent, node]
+                            self.graph.remove_nodes_from(successors)
+                            self.graph.add_node(node, **new_node)
+                            self.graph.add_edges_from(zip(repeat(node), outgoing), probability=(1/len(successors)))
+                            self.graph.add_edge(parent, node, **edge_data)
+                except StopIteration:
+                    return
 
 
     def load_file(self, file_path: Path | None):
@@ -186,10 +190,13 @@ class DFA:
         """
         gp = nx.nx_pydot.to_pydot(self.graph)
         for node in gp.get_nodes():
-            node.set_label(node.get('item'))
+            item = node.get('item')
+            if node.get('type') == 'group':
+                item = f"[{''.join(i for i in item)}]"
+            node.set_label(item)
+            node.set('item',item)
         for edge in gp.get_edges():
             edge.set_label(edge.get('probability'))
-
         gp.write_svg(store_path)
 
     def build_regex(self) -> str: 
@@ -204,14 +211,17 @@ class DFA:
         for node in nb:
             data = self.graph.nodes[node]
             degree = (self.graph.degree[node] - 1) # remove one because of incoming parent node
+            item = data['item']
+            if data['type'] == 'group':
+                item = f"[{''.join(item)}]"
             if data['item'] == "<END>":
                 continue
             if degree > 1:
-                regex_str += f"{data['item']}({self._build_from_subgraph(self.graph, node)})|"
+                regex_str += f"{item}({self._build_from_subgraph(self.graph, node)})|"
             elif degree == 1:
-                regex_str += f"{data['item']}{self._build_from_subgraph(self.graph, node)}|"
+                regex_str += f"{item}{self._build_from_subgraph(self.graph, node)}|"
             else:
-                regex_str += f"{data['item']}|"
+                regex_str += f"{item}|"
         if regex_str and regex_str[-1] == "|":
             regex_str = regex_str[:-1]
         return regex_str
