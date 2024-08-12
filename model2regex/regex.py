@@ -111,6 +111,8 @@ class DFA:
                 id_counter += 1
             else:
                 for idx in indices:
+                    if idx == 0:
+                        continue
                     new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
                     new_node_id = id_counter + 1
                     if idx != 0:
