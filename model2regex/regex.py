@@ -1,4 +1,5 @@
 from math import log
+import os
 from random import choice
 from itertools import repeat
 import networkx as nx
@@ -130,9 +131,32 @@ class DFA:
 
         if store:
             self.save_file()
-    def simplify_tree(self, iterations:int = 3):
-        layers = nx.bfs_layers(self.graph, 0)
-        layers = reversed(list(layers))
+    def simplify_tree(self, iterations:int = 5):
+        for _ in range(iterations):
+            layers = nx.bfs_layers(self.graph, 0)
+            layers = reversed(list(layers))
+            self._simplify_iteration(layers)
+
+    def _all_elements_the_same(self, nodes):
+        node_items = [self.graph.nodes[node]['item'] for node in nodes]
+
+        first = node_items[0]
+        for node in node_items[1:]:
+            if first != node:
+                return False
+        return True
+
+    def _merge_same_nodes(self, nodes):
+        first = nodes[0]
+        for node in nodes[1:]:
+            current_successors = self.graph.successors(node)
+            for successor in current_successors:
+                self.graph.add_edge(first, successor, probability=self.graph.edges[node, successor]['probability'])
+            self.graph.remove_node(node)
+
+
+
+    def _simplify_iteration(self, layers):
         for layer in layers:
             for node in layer:
                 if node not in self.graph:
@@ -141,26 +165,28 @@ class DFA:
                     parent = next(self.graph.predecessors(node))
                     successors = list(self.graph.successors(parent))
                     if len(successors) > 1:
-                        KL = 0
-                        for child in successors:
-                            edge = self.graph.edges[parent,child]
-                            KL += edge['probability'] * log((1/len(successors))/edge['probability'])
-                        if KL < 0.1:
-                            old_node = self.graph.nodes[node]
-                            new_node: Node = {'item': [self.graph.nodes[child]['item'] for child in successors], 
-                                              'type': 'group',
-                                              'depth': old_node['depth'] }
-                            outgoing = []
+                        if self._all_elements_the_same(successors):
+                            self._merge_same_nodes(successors)
+                        else:
+                            KL = 0
                             for child in successors:
-                                outgoing.extend(self.graph.neighbors(child))
-                            edge_data = self.graph.edges[parent, node]
-                            self.graph.remove_nodes_from(successors)
-                            self.graph.add_node(node, **new_node)
-                            self.graph.add_edges_from(zip(repeat(node), outgoing), probability=(1/len(successors)))
-                            self.graph.add_edge(parent, node, **edge_data)
+                                edge = self.graph.edges[parent,child]
+                                KL += edge['probability'] * log((1/len(successors))/edge['probability'])
+                            if KL < 0.1:
+                                old_node = self.graph.nodes[node]
+                                new_node: Node = {'item': [self.graph.nodes[child]['item'] for child in successors], 
+                                                  'type': 'group',
+                                                  'depth': old_node['depth'] }
+                                outgoing = []
+                                for child in successors:
+                                    outgoing.extend(self.graph.neighbors(child))
+                                edge_data = self.graph.edges[parent, node]
+                                self.graph.remove_nodes_from(successors)
+                                self.graph.add_node(node, **new_node)
+                                self.graph.add_edges_from(zip(repeat(node), outgoing), probability=(1/len(successors)))
+                                self.graph.add_edge(parent, node, **edge_data)
                 except StopIteration:
                     return
-
 
     def load_file(self, file_path: Path | None):
         """
@@ -184,7 +210,7 @@ class DFA:
             store_path.parent.mkdir(exist_ok=True)
         nx.write_gml(self.graph, store_path)
 
-    def visualize_tree(self, store_path: Path | str = Path('graphs/tree.svg')) -> None:
+    def visualize_tree(self, store_path: Path | str = Path('graphs/tree.svg'), open_file: bool = False) -> None:
         """
         generate an svg visualization using pydot
         """
@@ -198,6 +224,8 @@ class DFA:
         for edge in gp.get_edges():
             edge.set_label(edge.get('probability'))
         gp.write_svg(store_path)
+        if open_file:
+            os.startfile(store_path)
 
     def build_regex(self) -> str: 
         """

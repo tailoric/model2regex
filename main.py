@@ -27,7 +27,6 @@ def train_multi(data: Path, model_path: Path, **kwargs):
         model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False, device=device)
         datasets = list(map(lambda d: DGADataset(d, real_domains=[]), dataset_table.values()))
         trainer = ModelTrainer(model=model, dataset=datasets[0],model_path=model_path, device=device)
-        breakpoint()
         trainer.multi_train(datasets)
         return trainer
 
@@ -43,12 +42,14 @@ def build_regex(dataset: Path, model_path: Path, **kwargs):
         model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
         dfa.build_tree()
+        if visualize:
+            dfa.visualize_tree(graphing_path/f'dfa-{num}.svg', open_file=True)
         dfa.simplify_tree()
+        if visualize:
+            dfa.visualize_tree(graphing_path/f'dfa-{num}-simplified.svg', open_file=True)
         regex = dfa.build_regex()
         dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
         regex_list.append(regex)
-        if visualize:
-            dfa.visualize_tree(graphing_path/f'dfa-{num}.svg')
     final_regex = ''.join(regex_list)
     return final_regex
 
