@@ -81,12 +81,12 @@ graph [
   edge [
    source 1
    target 4
-   probability 0.5
+   probability 0.45
   ]
   edge [
    source 1
    target 5
-   probability 0.5
+   probability 0.45
   ]
   edge [
    source 2
