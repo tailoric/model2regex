@@ -137,15 +137,6 @@ class DFA:
             layers = reversed(list(layers))
             self._simplify_iteration(layers)
 
-    def _all_elements_the_same(self, nodes):
-        node_items = [self.graph.nodes[node]['item'] for node in nodes]
-
-        first = node_items[0]
-        for node in node_items[1:]:
-            if first != node:
-                return False
-        return True
-
     def _merge_same_nodes(self, nodes):
         first = nodes[0]
         parent = next(self.graph.predecessors(first), None)
@@ -176,6 +167,12 @@ class DFA:
         KL = sum(probability * log(uniform_probability/probability) for probability in probabilities)
         return KL < threshold
 
+    def _nodes_have_the_same_children(self, node: int, other: int, children_map: dict[int,list[Node]]):
+        for child in children_map[node]:
+            if child['item'] not in [c['item'] for c in children_map[other]]:
+                return False
+        return True
+
 
     def merge_siblings(self, siblings: list[int], parent: int) -> None: 
         children_map = {}
@@ -185,68 +182,31 @@ class DFA:
 
         node = siblings.pop(0)
         while siblings:
-            next = siblings.pop(0)
-            if len(children_map[node]) != len(children_map[next]):
+            next_node = siblings.pop(0)
+            if len(children_map[node]) != len(children_map[next_node]):
                 continue
-            for child in children_map[node]:
-                if child['item'] not in [c['item'] for c in children_map[next]]:
-                    continue
-            new_node = self.graph.nodes[node]
-            new_node['item'] = list(new_node['item'])
-            new_node['item'].extend([item for item in self.graph.nodes[next]['item']])
-            new_node['type'] = 'group'
-            self.graph.add_node(node, **new_node)
-            self.graph.remove_nodes_from(self.graph.successors(next))
-            self.graph.remove_node(next)
+            if self._nodes_have_the_same_children(node, next_node, children_map):
+                new_node = self.graph.nodes[node]
+                new_node['item'] = list(new_node['item'])
+                new_node['item'].extend([item for item in self.graph.nodes[next_node]['item']])
+                new_node['item'] = list(sorted(set(new_node['item'])))
+                new_node['type'] = 'group'
+                self.graph.add_node(node, **new_node)
+                for child_of_next in self.graph.successors(next_node):
+                    self.graph.add_edge(node, child_of_next, probability=self.graph.edges[next_node, child_of_next]['probability'])
+                self.graph.remove_node(next_node)
 
     def _simplify_iteration(self, layers):
-        breakpoint()
         for layer in layers:
             for node in layer:
+                if node not in self.graph:
+                    continue
                 parent, siblings = self.get_siblings(node)
                 if not siblings:
                     continue
                 edge_probabilities = [self.graph.edges[parent, sibling]['probability'] for sibling in siblings]
                 if self._is_uniformly_distributed(edge_probabilities):
                     self.merge_siblings(siblings, parent)
-
-
-
-
-
-
-
-    #def _simplify_iteration(self, layers):
-    #    for layer in layers:
-    #        for node in layer:
-    #            if node not in self.graph:
-    #                continue
-    #            try:
-    #                parent = next(self.graph.predecessors(node))
-    #                successors = list(self.graph.successors(parent))
-    #                if len(successors) > 1:
-    #                    if self._all_elements_the_same(successors):
-    #                        self._merge_same_nodes(successors)
-    #                    else:
-    #                        KL = 0
-    #                        for child in successors:
-    #                            edge = self.graph.edges[parent,child]
-    #                            KL += edge['probability'] * log((1/len(successors))/edge['probability'])
-    #                        if KL < 0.1:
-    #                            old_node = self.graph.nodes[node]
-    #                            new_node: Node = {'item': list(set(self.graph.nodes[child]['item'] for child in successors)), 
-    #                                              'type': 'group',
-    #                                              'depth': old_node['depth'] }
-    #                            outgoing = []
-    #                            for child in successors:
-    #                                outgoing.extend(self.graph.neighbors(child))
-    #                            edge_data = self.graph.edges[parent, node]
-    #                            self.graph.remove_nodes_from(successors)
-    #                            self.graph.add_node(node, **new_node)
-    #                            self.graph.add_edges_from(zip(repeat(node), outgoing), probability=(1/len(successors)))
-    #                            self.graph.add_edge(parent, node, **edge_data)
-    #            except StopIteration:
-    #                return
 
     def load_file(self, file_path: Path | None):
         """
