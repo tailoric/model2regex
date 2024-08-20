@@ -15,7 +15,6 @@ pandas = "^2.2.2"
 scikit-learn = "^1.4.2"
 tensorboard = "^2.16.2"
 matplotlib = "^3.9.0"
-pycairo = "^1.26.0"
 networkx = "^3.3"
 pydot = "^2.0.0"
 
@@ -27,6 +26,10 @@ torch = "^2.3.0"
 torchvision = "^0.18.0"
 torchaudio = "^2.3.0"
 
+[tool.poetry.group.gpu.dependencies]
+torch = "^2.3.0"
+torchvision = "^0.18.0"
+torchaudio = "^2.3.0"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.24.0"
