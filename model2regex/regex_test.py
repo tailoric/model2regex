@@ -85,14 +85,18 @@ class RegexGenTest(unittest.TestCase):
     def test_simplify_regex_max_three_children_max_depth_two(self):
         simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
         simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_three_children_depth_two.gml"))
+        simple_dfa.visualize_tree('three_depth_two.svg', open_file=True)
         simple_dfa.simplify_tree(iterations=3)
+        simple_dfa.visualize_tree('three_depth_two_simple.svg', open_file=True)
         regex = simple_dfa.build_regex()
         self.assertEqual("a[abc]|b[ab]|cc", regex)
 
     def test_simplify_regex_max_two_children_depth_three(self):
         simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
         simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_depth_three.gml"))
+        simple_dfa.visualize_tree('two_three.svg', open_file=True)
         simple_dfa.simplify_tree(iterations=3)
+        simple_dfa.visualize_tree('two_three-simple.svg', open_file=True)
         regex = simple_dfa.build_regex()
 
         self.assertEqual("a[ab][ab]|b[ab]", regex)
