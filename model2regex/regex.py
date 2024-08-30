@@ -133,7 +133,7 @@ class DFA:
             self.save_file()
     def simplify_tree(self, iterations:int = 5):
         graph_hash = nx.weisfeiler_lehman_graph_hash(self.graph, node_attr='item')
-        for _ in range(iterations):
+        while True:
             layers = nx.bfs_layers(self.graph, 0)
             layers = reversed(list(layers))
             self._simplify_iteration(layers)
@@ -141,21 +141,6 @@ class DFA:
             if graph_hash == new_hash:
                 return
             graph_hash = new_hash
-
-    def _merge_same_nodes(self, nodes):
-        first = nodes[0]
-        parent = next(self.graph.predecessors(first), None)
-        if not parent:
-            return
-        probability = self.graph.edges[parent, first]['probability']
-        for node in nodes[1:]:
-            probability += self.graph.edges[parent,node]['probability']
-            current_successors = self.graph.successors(node)
-
-            for successor in current_successors:
-                self.graph.add_edge(first, successor, probability=self.graph.edges[node, successor]['probability'])
-            self.graph.remove_node(node)
-        self.graph.add_edge(parent, first, probability=probability)
 
     def get_siblings(self, node: int) -> tuple[int,list[int]]:
         """
@@ -167,20 +152,21 @@ class DFA:
         siblings = list(self.graph.successors(parent))
         return parent, siblings
 
-    def _is_uniformly_distributed(self, probabilities: list[float], threshold: float = 0.15) -> bool:
+    def _is_uniformly_distributed(self, probabilities: list[float], threshold: float = 0.3) -> bool:
         uniform_probability = 1/len(probabilities)
         KL = sum(probability * log(uniform_probability/probability) for probability in probabilities)
         return KL < threshold
 
     def _nodes_have_the_same_children(self, node: int, other: int, children_map: dict[int,list[Node]]):
-        node_successors = list(nx.dfs_successors(self.graph, node))
-        other_successor = list(nx.dfs_successors(self.graph, other))
+        node_successors = list(nx.dfs_preorder_nodes(self.graph, node))
+        other_successor = list(nx.dfs_preorder_nodes(self.graph, other))
+        if not any((node_successors, other_successor)):
+            return True
+        node_successors.remove(node)
+        other_successor.remove(other)
         node_subgraph = self.graph.subgraph(node_successors)
         other_subgraph = self.graph.subgraph(other_successor)
         return nx.weisfeiler_lehman_graph_hash(node_subgraph, node_attr='item') == nx.weisfeiler_lehman_graph_hash(other_subgraph, node_attr='item')
-            
-
-
 
     def merge_siblings(self, siblings: list[int], parent: int) -> None: 
         children_map = {}
@@ -197,12 +183,14 @@ class DFA:
                 new_node = self.graph.nodes[node]
                 new_node['item'] = list(new_node['item'])
                 new_node['item'].extend([item for item in self.graph.nodes[next_node]['item']])
-                new_node['item'] = f'[{"".join(sorted(new_node["item"]))}]'
+                new_node['item'] = "".join(sorted(set(new_node["item"])))
                 new_node['type'] = 'group'
                 self.graph.add_node(node, **new_node)
                 for child_of_next in self.graph.successors(next_node):
                     self.graph.add_edge(node, child_of_next, probability=self.graph.edges[next_node, child_of_next]['probability'])
                 self.graph.remove_node(next_node)
+        
+
 
     def _simplify_iteration(self, layers):
         for layer in layers:
@@ -245,7 +233,10 @@ class DFA:
         gp = nx.nx_pydot.to_pydot(self.graph)
         for node in gp.get_nodes():
             item = node.get('item')
-            node.set_label(item)
+            if node.get('type') == 'group':
+                node.set_label(f"[{item}]")
+            else:
+                node.set_label(item)
         for edge in gp.get_edges():
             edge.set_label(edge.get('probability'))
         gp.write_svg(store_path)
@@ -265,6 +256,8 @@ class DFA:
             data = self.graph.nodes[node]
             degree = (self.graph.degree[node] - 1) # remove one because of incoming parent node
             item = data['item']
+            if data['type'] == 'group':
+                item = f"[{data['item']}]"
             if data['item'] == "<END>":
                 continue
             if degree > 1:

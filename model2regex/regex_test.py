@@ -71,7 +71,7 @@ class RegexGenTest(unittest.TestCase):
     def test_simplify_regex(self):
         simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
         simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_two_children.gml"))
-        simple_dfa.simplify_tree(iterations=2)
+        simple_dfa.simplify_tree(iterations=3)
         regex = simple_dfa.build_regex()
         self.assertEqual("[ab][ab]|cc", regex)
 
