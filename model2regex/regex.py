@@ -134,7 +134,7 @@ class DFA:
             self.save_file()
     def simplify_tree(self, iterations:int = 5):
         graph_hash = nx.weisfeiler_lehman_graph_hash(self.graph, node_attr='item')
-        while True:
+        for _ in range(iterations):
             layers = nx.bfs_layers(self.graph, 0)
             layers = reversed(list(layers))
             self._simplify_iteration(layers)
