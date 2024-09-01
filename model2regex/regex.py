@@ -168,6 +168,17 @@ class DFA:
         other_subgraph = self.graph.subgraph(other_successor)
         return nx.weisfeiler_lehman_graph_hash(node_subgraph, node_attr='item') == nx.weisfeiler_lehman_graph_hash(other_subgraph, node_attr='item')
 
+    def merge_same_children(self, node: int):
+        siblings = self.graph.successors(node)
+        subtrees = [self.graph.subgraph(nx.dfs_preorder_nodes(self.graph, sibling)) for sibling in siblings]
+        for first, second in itertools.combinations(subtrees, 2):
+            if not all(node in self.graph for node in first):
+                continue
+            if nx.weisfeiler_lehman_graph_hash(first) == nx.weisfeiler_lehman_graph_hash(second):
+                self.graph.remove_nodes_from(second)
+
+
+
     def merge_siblings(self, siblings: list[int], parent: int) -> None: 
         children_map = {}
         for sibling in siblings:
@@ -189,7 +200,7 @@ class DFA:
                 for child_of_next in self.graph.successors(next_node):
                     self.graph.add_edge(node, child_of_next, probability=self.graph.edges[next_node, child_of_next]['probability'])
                 self.graph.remove_node(next_node)
-        
+            self.merge_same_children(node)
 
 
     def _simplify_iteration(self, layers):
