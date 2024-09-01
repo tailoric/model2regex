@@ -1,3 +1,4 @@
+import itertools
 from math import log
 import os
 from random import choice
@@ -185,9 +186,9 @@ class DFA:
             children = list(self.graph.nodes[child] for child in self.graph.successors(sibling))
             children_map[sibling] = children
 
-        node = siblings.pop(0)
-        while siblings:
-            next_node = siblings.pop(0)
+        for node, next_node in itertools.combinations(siblings, 2):
+            if node not in self.graph:
+                continue
             if len(children_map[node]) != len(children_map[next_node]):
                 continue
             if self._nodes_have_the_same_children(node, next_node, children_map):
