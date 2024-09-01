@@ -44,11 +44,12 @@ def build_regex(dataset: Path, model_path: Path, **kwargs):
         dfa.build_tree()
         if visualize:
             dfa.visualize_tree(graphing_path/f'dfa-{num}.svg', open_file=True)
+        dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
         dfa.simplify_tree()
         if visualize:
             dfa.visualize_tree(graphing_path/f'dfa-{num}-simplified.svg', open_file=True)
         regex = dfa.build_regex()
-        dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
+        dfa.save_file(Path(graphing_path / f'dfa-{num}-simple.gml.gz'))
         regex_list.append(regex)
     final_regex = ''.join(regex_list)
     return final_regex
