@@ -96,8 +96,20 @@ class RegexGenTest(unittest.TestCase):
         regex = simple_dfa.build_regex()
 
         self.assertEqual("a[ab][ab]|b[ab]", regex)
+    
+    def test_simplify_on_abcd_domain_tree(self):
+        dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        dfa.load_file(pathlib.Path('test/abcd_domains.gml.gz'))
+        dfa.simplify_tree()
+        regex = dfa.build_regex()
+        self.assertEqual("[abcd][abcd][abcd][abcd]", regex)
 
-        
+    def test_simplify_on_mergeable_nodes_in_center(self):
+        simple_dfa = DFA(self.model, heuristic=Threshold(), store_path=pathlib.Path(self.test_directory.name), root_starter="")
+        simple_dfa.load_file(pathlib.Path("test/test_simple_nodes_three_children_depth_two_inverted.gml"))
+        simple_dfa.simplify_tree(iterations=3)
+        regex = simple_dfa.build_regex()
+        self.assertEqual("cc|[ab][ab]", regex)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
