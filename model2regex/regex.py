@@ -11,6 +11,7 @@ from torch.distributions import Categorical
 from model2regex.model import DEFAULT_MODEL_SETTINGS, DGAClassifier
 import re
 import torch
+import platform
 
 UP = "\x1B[3A"
 CLR = "\x1B[0K"
@@ -252,7 +253,7 @@ class DFA:
         for edge in gp.get_edges():
             edge.set_label(edge.get('probability'))
         gp.write_svg(store_path)
-        if open_file:
+        if open_file and platform.system() == 'Windows':
             os.startfile(store_path)
 
     def build_regex(self) -> str: 
