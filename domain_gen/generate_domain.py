@@ -4,6 +4,9 @@ import argparse
 
 from . import exrex
 
+def generate_example_url():
+    return exrex.getone(r'[a-c]{4}')
+
 def generate_url_scheme_1():
     return exrex.getone(r'[a-c]{2}[ab]{2}-domain\.com')
 
@@ -22,7 +25,7 @@ def statefulExreg():
         return exrex.getone(r'[0-9]{5}\.knievel\.[a-c]{3,4}\.com')
 
 IND2FUN = {1: generate_url_scheme_1, 2: generate_url_scheme_2,
-           3: simpleExreg, 4: statefulExreg}
+           3: simpleExreg, 4: statefulExreg, 5: generate_example_url}
 
 def main():
     schemes = sorted(IND2FUN.keys())

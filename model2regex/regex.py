@@ -25,12 +25,19 @@ class Node(TypedDict):
     depth: int
     classification: NotRequired[float]
 
+class AllMatchNode(Node):
+    '''
+    these are the exception nodes that should not be used when constructing
+    the tree.
+    '''
+    stop_chars: str
+
 class Heuristic(Protocol):
     """
     base class that defines the heuristic strategy for building the regex tree.
     """
     
-    def next_node(self, distribution: Categorical) -> Tuple[Sequence[int], str]:
+    def next_node(self, distribution: Categorical, depth: int) -> Tuple[Sequence[int], str]:
         """
         return the indices for the char_map of the distribution to add to the tree.
         """
@@ -38,18 +45,27 @@ class Heuristic(Protocol):
 
 class Threshold(Heuristic):
 
-    def __init__(self, threshold: float = 0.4, quantile: float = 0.5) -> None:
+    def __init__(self, max_depth: int, threshold: float = 0.4, min_increase: float = 0.5) -> None:
         self.threshold = threshold
-        self.quantile = quantile
+        self.min_increase = min_increase
+        self.max_depth = max_depth
 
-    def next_node(self, distribution: Categorical) -> Tuple[Sequence[int], str]:
+    def next_node(self, distribution: Categorical, depth: int) -> Tuple[Sequence[int], str]:
+        if depth > self.max_depth:
+            return [], 'all'
         mask = distribution.probs > self.threshold
         if torch.any(mask):
             indices = torch.argwhere(mask).squeeze().tolist()
             item_type = 'simple'
         else:
-            mask = distribution.probs >= torch.quantile(distribution.probs, self.quantile, interpolation='nearest')
-            indices = torch.argwhere(mask).squeeze().tolist()
+            sorted_probs = torch.sort(distribution.probs, descending=True)
+            sum_prob = 0
+            indices = []
+            for sorted, idx in zip(*sorted_probs):
+                if sorted < self.min_increase:
+                    break
+                sum_prob += sorted
+                indices.append(idx.item())
             item_type = 'simple'
         return indices, item_type
 
@@ -57,7 +73,7 @@ class Entropy(Heuristic):
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
 
-    def next_node(self, distribution: Categorical) -> Tuple[Sequence[int], str]:
+    def next_node(self, distribution: Categorical, depth: int) -> Tuple[Sequence[int], str]:
         entropy = - torch.sum(distribution.probs * distribution.probs.log()) # type: ignore
         if entropy < self.threshold:
             item_type = 'simple'
@@ -69,7 +85,7 @@ class Entropy(Heuristic):
 
 
 class DFA:
-    def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", heuristic: Heuristic = Threshold()):
+    def __init__(self, model: DGAClassifier, store_path = Path("graphs"), root_starter: str = "", heuristic: Heuristic = Threshold(max_depth=4)):
         root_node: Node = {'item': root_starter, 'depth': 0, 'type': 'root'}
         self.graph = nx.DiGraph()
         self.graph.add_node(0, **root_node)
@@ -86,6 +102,7 @@ class DFA:
         nodes_to_visit: list[tuple[int,Node]] = [(0,self.graph.nodes[0])]
         id_counter = 0
         end_nodes = 0
+        print("\n\n")
         while nodes_to_visit:
             node_id, data = nodes_to_visit.pop(0)
             depth = data.get('depth')
@@ -95,12 +112,15 @@ class DFA:
                 parent_node: Node = self.graph.nodes[parent[0]]
                 if parent_node['type'] in ('simple','root'):
                     root_path_symbols.append(parent_node.get('item'))
-                else:
+                elif parent_node['type'] == 'group':
                     root_path_symbols.append(choice(parent_node.get('item')))
+                elif parent_node['type'] == 'all':
+                    root_path_symbols.append(choice(set(char_map._dict.keys) - set(parent_node.get('exceptions'))))
+                    break
                 parent: list[int] = list(self.graph.predecessors(parent[0]))
             starter = "".join(reversed(root_path_symbols))
             _, distribution = self.model.predict_next_token(starter)
-            indices, item_type = self.heuristic.next_node(distribution)
+            indices, item_type = self.heuristic.next_node(distribution, depth)
             if not isinstance(indices, list):
                 indices = [indices]
             if item_type == "group":
@@ -111,6 +131,12 @@ class DFA:
                 mean = torch.mean(distribution.probs[indices])
                 self.graph.add_edge(node_id, new_node_id, probability=round(mean.item(), ndigits=2))
                 nodes_to_visit.append((new_node_id, new_node))
+                id_counter += 1
+            if item_type == 'all':
+                item = '.'
+                new_node: AllMatchNode = {'item': '.*', 'exception':["<END>", "_"], 'type':"all", 'depth': depth+1}
+                new_node_id = id_counter + 1
+                self.graph.add_node(new_node_id, **new_node)
                 id_counter += 1
             else:
                 for idx in indices:
@@ -128,8 +154,8 @@ class DFA:
                     self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
                     id_counter += 1
 
-            #print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
-            #      f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
+            print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
+                  f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
 
         if store:
             self.save_file()
@@ -156,7 +182,7 @@ class DFA:
 
     def _is_uniformly_distributed(self, probabilities: list[float], threshold: float = 0.3) -> bool:
         uniform_probability = 1/len(probabilities)
-        KL = sum(probability * log(uniform_probability/probability) for probability in probabilities)
+        KL = sum(probability * log(uniform_probability/probability) for probability in probabilities if probability > 0)
         return KL < threshold
 
     def _nodes_have_the_same_children(self, node: int, other: int, children_map: dict[int,list[Node]]):
@@ -179,8 +205,6 @@ class DFA:
             if nx.weisfeiler_lehman_graph_hash(first) == nx.weisfeiler_lehman_graph_hash(second):
                 self.graph.remove_nodes_from(second)
 
-
-
     def merge_siblings(self, siblings: list[int], parent: int) -> None: 
         children_map = {}
         for sibling in siblings:
@@ -188,7 +212,7 @@ class DFA:
             children_map[sibling] = children
 
         for node, next_node in itertools.combinations(siblings, 2):
-            if node not in self.graph:
+            if node not in self.graph or next_node not in self.graph:
                 continue
             if len(children_map[node]) != len(children_map[next_node]):
                 continue
@@ -244,6 +268,7 @@ class DFA:
         generate an svg visualization using pydot
         """
         gp = nx.nx_pydot.to_pydot(self.graph)
+        print(gp)
         for node in gp.get_nodes():
             item = node.get('item')
             if node.get('type') == 'group':

@@ -6,7 +6,11 @@ import domain_gen
 import re
 from argparse import ArgumentParser
 from typing import Sequence
+import matplotlib.pyplot as plt
+import sqlite3 as sql
+
 choices: Sequence[Callable] = [func for func in domain_gen.IND2FUN.values()]
+
 def gen_dataset(func: Callable[[], str], count: int, *, store_path: Path|None = None) -> list[str]:
     dataset = []
     for _ in range(count):
@@ -37,8 +41,8 @@ def build_regex(dataset: Path, model_path: Path, **kwargs):
     graphing_path = kwargs.get('graphing_path', Path('graphs'))
     visualize = kwargs.get('visualize', False)
     regex_list = []
-    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.1, quantile=0.5))
-    for num, model_path in enumerate(model_path.iterdir(), start=1):
+    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.1, min_increase=0.005, max_depth=4))
+    for num, model_path in enumerate(sorted(model_path.iterdir()), start=1):
         model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
         dfa.build_tree()
@@ -54,7 +58,50 @@ def build_regex(dataset: Path, model_path: Path, **kwargs):
     final_regex = ''.join(regex_list)
     return final_regex
 
+def test_regex(dataset: Path, regex:str):
+        matched = 0
+        print(regex)
+        pattern = re.compile(regex)
+        with dataset.open() as ds:
+            lines = ds.readlines()
+            for line in lines:
+                match = pattern.match(line)
+                if match:
+                    matched += 1
 
+            print(f"Matched {matched:,}/{len(lines):,} ({matched/len(lines):%})")
+            return matched, len(lines)
+
+def evaluation(dataset: Path, model_path: Path, **kwargs):
+    threshold_num = 5
+    increases_num = 10
+    thresholds = torch.linspace(0.1, 0.6, threshold_num)
+    min_increase = torch.linspace(0.01, 0.1, increases_num)
+    hyper_params = torch.stack(torch.meshgrid(thresholds,min_increase, indexing='ij')).T.reshape(threshold_num * increases_num, 2)
+    with sql.connect("results.db") as conn:
+        conn.row_factory = sql.Row
+        cur = conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS evaluation_result(
+            threshold NUMERIC,
+            min_increase NUMERIC,
+            regex TEXT,
+            matches INTEGER,
+            total INTEGER
+        );
+        """)
+        cur.close()
+        for threshold, increase in hyper_params:
+            print(f"Evaluation for threshold={threshold}, min_increase={increase}")
+            regex = build_regex(dataset, model_path, heuristic=Threshold(threshold=threshold.item(), min_increase=increase.item(), max_depth=4))
+            matched, total = test_regex(dataset, regex)
+            insert_cur = conn.cursor()
+            insert_cur.execute("""
+                INSERT INTO evaluation_result(threshold, min_increase, regex, matches, total)
+                VALUES (?, ?, ?, ?, ?)
+            """, (threshold.item(), increase.item(), regex, matched, total))
+            conn.commit()
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run this main file to generate a regular expression from a Language Model.')
@@ -71,7 +118,6 @@ if __name__ == "__main__":
     dataset_gen_flag = 'gen-dataset' in arguments.steps if arguments.steps else False
     train_model_flag = 'train-models' in arguments.steps if arguments.steps else False
     test_regex_flag = 'test-regex' in arguments.steps if arguments.steps else False
-    print(arguments)
     if dataset_gen_flag and not arguments.data:
         raise Exception("Please provide the path to store the data at with --data.")
     if dataset_gen_flag and not arguments.domain_generator:
@@ -83,20 +129,5 @@ if __name__ == "__main__":
     if train_model_flag:
         logging.basicConfig()
         train_multi(arguments.data, arguments.model_path, device=arguments.device)
-
-    regex = build_regex(arguments.data, arguments.model_path, visualize=True, device=arguments.device)
-
     if test_regex_flag:
-        matched = 0
-        print(regex)
-        pattern = re.compile(regex)
-        with arguments.data.open() as ds:
-            lines = ds.readlines()
-            for line in lines:
-                match = pattern.match(line)
-                if match:
-                    matched += 1
-
-            print(f"Matched {matched:,}/{len(lines):,} ({matched/len(lines):%})")
-    print(regex)
-    
+        evaluation(arguments.data, arguments.model_path)

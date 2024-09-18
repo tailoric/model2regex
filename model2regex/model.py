@@ -23,7 +23,6 @@ class BiMapping:
     A bidirectonal mapping class holding two dictionaries
     used for converting characters to their index and back
     """
-
     def __init__(self, characters: str):
         self._dict = {ch: i for i, ch in enumerate(characters, start=1)}
         self._reverse = {i: ch for i, ch in enumerate(characters, start=1)}
