@@ -285,7 +285,7 @@ class DFA:
         """
         build a regex from the current DFA tree.
         """
-        return self._build_from_subgraph(self.graph, 0)
+        return f"({self._build_from_subgraph(self.graph, 0)})"
 
     def _build_from_subgraph(self, subgraph, source) -> str:
         regex_str = ""
