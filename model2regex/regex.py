@@ -45,27 +45,19 @@ class Heuristic(Protocol):
 
 class Threshold(Heuristic):
 
-    def __init__(self, max_depth: int, threshold: float = 0.4, min_increase: float = 0.5) -> None:
+    def __init__(self, max_depth: int, threshold: float = 0.4) -> None:
         self.threshold = threshold
-        self.min_increase = min_increase
         self.max_depth = max_depth
 
     def next_node(self, distribution: Categorical, depth: int) -> Tuple[Sequence[int], str]:
-        if depth > self.max_depth:
-            return [], 'all'
+        if depth >= self.max_depth:
+            return [0], 'simple'
         mask = distribution.probs > self.threshold
         if torch.any(mask):
             indices = torch.argwhere(mask).squeeze().tolist()
             item_type = 'simple'
         else:
-            sorted_probs = torch.sort(distribution.probs, descending=True)
-            sum_prob = 0
-            indices = []
-            for sorted, idx in zip(*sorted_probs):
-                if sorted < self.min_increase:
-                    break
-                sum_prob += sorted
-                indices.append(idx.item())
+            indices = torch.argwhere(distribution.probs >= distribution.probs.mean().item()).squeeze().tolist()
             item_type = 'simple'
         return indices, item_type
 
