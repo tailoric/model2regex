@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 from model2regex import *
 from itertools import batched
@@ -6,8 +7,8 @@ import domain_gen
 import re
 from argparse import ArgumentParser
 from typing import Sequence
-import matplotlib.pyplot as plt
-import sqlite3 as sql
+import sqlite3
+import pandas as pd
 
 choices: Sequence[Callable] = [func for func in domain_gen.IND2FUN.values()]
 
@@ -21,10 +22,11 @@ def gen_dataset(func: Callable[[], str], count: int, *, store_path: Path|None = 
 
 def train_multi(data: Path, model_path: Path, **kwargs):
     device = kwargs.get("device", "cuda:0")
+    split_size = kwargs.get('splits', 4)
     with data.open() as ds:
         dataset_table = defaultdict(list)
         while line := ds.readline():
-            splits = [''.join(batch) for batch in batched(line[:-1], n=4)]
+            splits = [''.join(batch) for batch in batched(line[:-1], n=split_size)]
             for idx, split in enumerate(splits):
                 dataset_table[idx].append(split or '')
         
@@ -34,14 +36,14 @@ def train_multi(data: Path, model_path: Path, **kwargs):
         trainer.multi_train(datasets)
         return trainer
 
-def build_regex(dataset: Path, model_path: Path, **kwargs):
+def build_regex(dataset: Path, model_path: Path, **kwargs) -> tuple[str,list[str]]:
     device = kwargs.get('device', 'cuda:0')
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False, device=device)
     model.to(device)
     graphing_path = kwargs.get('graphing_path', Path('graphs'))
     visualize = kwargs.get('visualize', False)
     regex_list = []
-    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.1, min_increase=0.005, max_depth=4))
+    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.1, max_depth=4))
     for num, model_path in enumerate(sorted(model_path.iterdir()), start=1):
         model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
@@ -56,57 +58,42 @@ def build_regex(dataset: Path, model_path: Path, **kwargs):
         dfa.save_file(Path(graphing_path / f'dfa-{num}-simple.gml.gz'))
         regex_list.append(regex)
     final_regex = ''.join(regex_list)
-    return final_regex
+    return final_regex, regex_list
 
-def test_regex(dataset: Path, regex:str):
+def test_regex(dataset: Iterable[str], regex:str):
         matched = 0
-        print(regex)
+        total = 0
         pattern = re.compile(regex)
-        with dataset.open() as ds:
-            lines = ds.readlines()
-            for line in lines:
-                match = pattern.match(line)
-                if match:
-                    matched += 1
+        for data in dataset:
+            total += 1
+            match = pattern.fullmatch(data)
+            if match:
+                matched += 1
+        return matched, total
 
-            print(f"Matched {matched:,}/{len(lines):,} ({matched/len(lines):%})")
-            return matched, len(lines)
+def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
+    threshold_num = 100
+    split_sizes =  torch.tensor([2,3,4,5,6,7], dtype=torch.int8)
+    thresholds = torch.linspace(0.01, 0.8, threshold_num)
+    tranco_list = kwargs.get('real_domains', Path(r'data/top-1m.csv'))
+    real_domains = pd.read_csv(tranco_list).to_numpy()[:,1]
+    for size in split_sizes:
+        training_path = model_path / domain_name / str(int(size.item()))
+        train_multi(dataset, training_path, splits=size)
+        for threshold in thresholds:
+            print(f"Evaluation for threshold={threshold}, split size: {size}")
+            regex, regex_list = build_regex(dataset, training_path, heuristic=Threshold(threshold=threshold.item(), max_depth=int(size.item())))
+            print(regex)
+            print('\t'.join(regex_list))
+            with dataset.open() as ds:
+                TP, total_dga = test_regex(map(lambda l: l.strip('\n'), ds.readlines()), regex)
+                FP, total_domains = test_regex(real_domains, regex)
+                print((TP/total_dga),(FP/total_domains))
 
-def evaluation(dataset: Path, model_path: Path, **kwargs):
-    threshold_num = 5
-    increases_num = 10
-    thresholds = torch.linspace(0.1, 0.6, threshold_num)
-    min_increase = torch.linspace(0.01, 0.1, increases_num)
-    hyper_params = torch.stack(torch.meshgrid(thresholds,min_increase, indexing='ij')).T.reshape(threshold_num * increases_num, 2)
-    with sql.connect("results.db") as conn:
-        conn.row_factory = sql.Row
-        cur = conn.cursor()
-        cur.execute("PRAGMA journal_mode=WAL")
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS evaluation_result(
-            threshold NUMERIC,
-            min_increase NUMERIC,
-            regex TEXT,
-            matches INTEGER,
-            total INTEGER
-        );
-        """)
-        cur.close()
-        for threshold, increase in hyper_params:
-            print(f"Evaluation for threshold={threshold}, min_increase={increase}")
-            regex = build_regex(dataset, model_path, heuristic=Threshold(threshold=threshold.item(), min_increase=increase.item(), max_depth=4))
-            matched, total = test_regex(dataset, regex)
-            insert_cur = conn.cursor()
-            insert_cur.execute("""
-                INSERT INTO evaluation_result(threshold, min_increase, regex, matches, total)
-                VALUES (?, ?, ?, ?, ?)
-            """, (threshold.item(), increase.item(), regex, matched, total))
-            conn.commit()
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run this main file to generate a regular expression from a Language Model.')
-    
-    parser.add_argument("--steps", help="which additional steps should the program do in this run.", action='append', choices=['gen-dataset', 'train-models', 'test-regex'])
+    parser.add_argument("--steps", help="which additional steps should the program do in this run.", action='append', choices=['gen-dataset', 'train-models', 'test-regex', 'evaluate'])
     dataset_group = parser.add_argument_group("dataset", "options for when gen-dataset was added as extra step")
     parser.add_argument('--model-path', type=Path, help="Path where the generated models should be stored if train-models was chosen otherwise the directory that will get read for the models.", required=True)
     dataset_group.add_argument('--domain-generator', help="The generator function to use from domain_gen", choices=[func.__name__ for func in choices])
@@ -118,16 +105,34 @@ if __name__ == "__main__":
     dataset_gen_flag = 'gen-dataset' in arguments.steps if arguments.steps else False
     train_model_flag = 'train-models' in arguments.steps if arguments.steps else False
     test_regex_flag = 'test-regex' in arguments.steps if arguments.steps else False
+    evaluate_flag = 'evaluate' in arguments.steps if arguments.steps else False
     if dataset_gen_flag and not arguments.data:
         raise Exception("Please provide the path to store the data at with --data.")
     if dataset_gen_flag and not arguments.domain_generator:
         raise Exception("Provide the generator you want to use for generating the dataset")
 
-    if dataset_gen_flag:
-        func = getattr(domain_gen, arguments.domain_generator)
-        gen_dataset(func, arguments.count, store_path=arguments.data)
-    if train_model_flag:
-        logging.basicConfig()
-        train_multi(arguments.data, arguments.model_path, device=arguments.device)
-    if test_regex_flag:
-        evaluation(arguments.data, arguments.model_path)
+    logging.basicConfig()
+    if evaluate_flag:
+        data_path: Path = arguments.data
+        if not data_path.exists():
+            data_path.mkdir(exist_ok=True, parents=True)
+        if not data_path.is_dir():
+            raise Exception('The data path must be a directory')
+        for func in choices:
+            dataset_path = arguments.data / (func.__name__ + '.txt')
+            gen_dataset(func, count=100_000, store_path=dataset_path)
+            evaluation(dataset=dataset_path,
+                       model_path=arguments.model_path,
+                       domain_name=func.__name__
+                       )
+    else:
+        if dataset_gen_flag:
+            func = getattr(domain_gen, arguments.domain_generator)
+            gen_dataset(func, arguments.count, store_path=arguments.data)
+        if train_model_flag:
+            train_multi(arguments.data, arguments.model_path, device=arguments.device)
+        if test_regex_flag:
+            with arguments.data.open() as f:
+                lines = f.readlines()
+                regex = test_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path)
+
