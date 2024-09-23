@@ -77,6 +77,24 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     thresholds = torch.linspace(0.01, 0.8, threshold_num)
     tranco_list = kwargs.get('real_domains', Path(r'data/top-1m.csv'))
     real_domains = pd.read_csv(tranco_list).to_numpy()[:,1]
+    conn = sqlite3.connect('results.db')
+    conn.execute('''
+    PRAGMA journal_mode=WAL;
+    ''')
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS results(
+        domain_name TEXT,
+        threshold REAL,
+        split_size INTEGER,
+        true_positives INTEGER,
+        DGA_total INTEGER,
+        false_positives INTEGER,
+        real_domain_total INTEGER,
+        regex TEXT,
+        regex_parts TEXT
+    ) STRICT;
+    ''')
+    conn.commit()
     for size in split_sizes:
         training_path = model_path / domain_name / str(int(size.item()))
         train_multi(dataset, training_path, splits=size)
@@ -88,9 +106,12 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
             with dataset.open() as ds:
                 TP, total_dga = test_regex(map(lambda l: l.strip('\n'), ds.readlines()), regex)
                 FP, total_domains = test_regex(real_domains, regex)
-                print((TP/total_dga),(FP/total_domains))
-
-
+                conn.execute('''
+                INSERT INTO results (domain_name, threshold, split_size, true_positives, DGA_total, false_positives, real_domain_total, regex, regex_parts)
+                VALUES (?,?,?,?,?,?,?,?,?)
+                ''', (domain_name, threshold.item(), size.item(), TP, total_dga, FP, total_domains, regex, '\t'.join(regex_list)))
+                conn.commit()
+    conn.close()
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run this main file to generate a regular expression from a Language Model.')
     parser.add_argument("--steps", help="which additional steps should the program do in this run.", action='append', choices=['gen-dataset', 'train-models', 'test-regex', 'evaluate'])
