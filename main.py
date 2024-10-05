@@ -139,13 +139,14 @@ if __name__ == "__main__":
             data_path.mkdir(exist_ok=True, parents=True)
         if not data_path.is_dir():
             raise Exception('The data path must be a directory')
-        for func in choices:
-            dataset_path = arguments.data / (func.__name__ + '.txt')
-            gen_dataset(func, count=100_000, store_path=dataset_path)
-            evaluation(dataset=dataset_path,
-                       model_path=arguments.model_path,
-                       domain_name=func.__name__
-                       )
+        func = domain_gen.IND2FUN[4]
+        #for func in choices:
+        dataset_path = arguments.data / (func.__name__ + '.txt')
+        gen_dataset(func, count=100_000, store_path=dataset_path)
+        evaluation(dataset=dataset_path,
+                   model_path=arguments.model_path,
+                   domain_name=func.__name__
+                   )
     else:
         if dataset_gen_flag:
             func = getattr(domain_gen, arguments.domain_generator)
