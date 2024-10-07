@@ -32,11 +32,11 @@ class RegexGenTest(unittest.TestCase):
         self.test_dfa = DFA(self.model, heuristic=Threshold(max_depth=4), store_path=path, root_starter="www.google.")
 
     def test_build_tree(self):
-        self.test_dfa.build_tree(store=True)
+        self.test_dfa.build_tree(store=True, max_depth=4)
         self.assertTrue((self.test_dfa.store_path / 'graph.gml.gz').exists())
 
     def test_loading_dfa_tree(self):
-        self.test_dfa.build_tree()
+        self.test_dfa.build_tree(max_depth=4)
         new_dfa = DFA(self.model, heuristic=Threshold(max_depth=4), store_path=pathlib.Path(self.test_directory.name), root_starter="")
         new_dfa.load_file(new_dfa.store_path / 'graph.gml.gz')
         start_node = new_dfa.graph.nodes[0]

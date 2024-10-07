@@ -36,7 +36,6 @@ class Heuristic(Protocol):
     """
     base class that defines the heuristic strategy for building the regex tree.
     """
-    
     def next_node(self, distribution: Categorical, depth: int) -> Tuple[Sequence[int], str]:
         """
         return the indices for the char_map of the distribution to add to the tree.
@@ -57,7 +56,7 @@ class Threshold(Heuristic):
             indices = torch.argwhere(mask).squeeze().tolist()
             item_type = 'simple'
         else:
-            indices = torch.argwhere(distribution.probs >= distribution.probs.mean().item()).squeeze().tolist()
+            indices = [] 
             item_type = 'simple'
         return indices, item_type
 
@@ -86,7 +85,7 @@ class DFA:
         self.heuristic = heuristic
         self.store_path = store_path
 
-    def build_tree(self, store = False) -> None:
+    def build_tree(self, max_depth: int, store = False) -> None:
         """
         builds the tree for the DFA, by adding to the DiGraph in self.graph
         """
@@ -131,20 +130,30 @@ class DFA:
                 self.graph.add_node(new_node_id, **new_node)
                 id_counter += 1
             else:
-                for idx in indices:
-                    if idx == 0:
-                        continue
-                    new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
-                    new_node_id = id_counter + 1
-                    if idx != 0:
-                        nodes_to_visit.append((new_node_id, new_node))
-                    else:
-                        x, _, _ = self.model([starter], None)
-                        new_node['classification'] = x.round().item()
-                        end_nodes += 1
-                    self.graph.add_node(new_node_id, **new_node)
-                    self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
-                    id_counter += 1
+                if not indices:
+                    for _ in range(max_depth - depth):
+                        new_node : Node = {'item': '.', 'depth': depth+1, 'type': 'single'}
+                        new_node_id = id_counter + 1
+                        self.graph.add_node(new_node_id, **new_node)
+                        self.graph.add_edge(node_id, new_node_id, probability=1.0)
+                        node_id = new_node_id
+                        id_counter += 1
+                else:
+                    for idx in indices:
+                        if idx == 0:
+                            continue
+                        new_node : Node = {'item': char_map[idx], 'depth': depth + 1, 'type': 'simple'}
+                        new_node['item'] = new_node['item'].replace('.', r'\.')
+                        new_node_id = id_counter + 1
+                        if idx != 0:
+                            nodes_to_visit.append((new_node_id, new_node))
+                        else:
+                            x, _, _ = self.model([starter], None)
+                            new_node['classification'] = x.round().item()
+                            end_nodes += 1
+                        self.graph.add_node(new_node_id, **new_node)
+                        self.graph.add_edge(node_id, new_node_id, probability=round(distribution.probs[idx].item(), ndigits=2))
+                        id_counter += 1
 
             print(f"{UP}nodes to visit: {len(nodes_to_visit):,}, current starter: {starter}{CLR}\n"+
                   f"tree nodes: {len(self.graph):,}, end nodes: {end_nodes} depth: {depth}, entropy {-torch.sum(distribution.probs * distribution.probs.log())}{CLR}\n")
@@ -212,7 +221,7 @@ class DFA:
                 new_node = self.graph.nodes[node]
                 new_node['item'] = list(new_node['item'])
                 new_node['item'].extend([item for item in self.graph.nodes[next_node]['item']])
-                new_node['item'] = "".join(sorted(set(new_node["item"])))
+                new_node['item'] = "".join(sorted(set(new_node["item"]))).replace('\\','')
                 new_node['type'] = 'group'
                 self.graph.add_node(node, **new_node)
                 for child_of_next in self.graph.successors(next_node):
@@ -304,8 +313,8 @@ if __name__ == "__main__":
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS)
     model.load_state_dict(torch.load('models_backwards/model-backwards.pth'))
     model.to("cuda:0")
-    dfa = DFA(model, root_starter="", heuristic=Threshold())
-    dfa.build_tree(store=True)
+    dfa = DFA(model, root_starter="", heuristic=Threshold(max_depth=4))
+    dfa.build_tree(store=True, max_depth=4)
     dfa.load_file(file_path=Path('graphs/graph.gml.gz'))
     regex = dfa.build_regex()
     #regex = ''.join(reversed(regex))

@@ -43,11 +43,12 @@ def build_regex(dataset: Path, model_path: Path, **kwargs) -> tuple[str,list[str
     graphing_path = kwargs.get('graphing_path', Path('graphs'))
     visualize = kwargs.get('visualize', False)
     regex_list = []
-    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.1, max_depth=4))
+    max_depth = kwargs.get('max_depth', 4)
+    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.6, max_depth=4))
     for num, model_path in enumerate(sorted(model_path.iterdir()), start=1):
         model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
-        dfa.build_tree()
+        dfa.build_tree(max_depth=heuristic.max_depth)
         if visualize:
             dfa.visualize_tree(graphing_path/f'dfa-{num}.svg', open_file=True)
         dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
@@ -66,14 +67,15 @@ def test_regex(dataset: Iterable[str], regex:str):
         pattern = re.compile(regex)
         for data in dataset:
             total += 1
-            match = pattern.fullmatch(data)
+            match = pattern.search(data)
             if match:
+                print(data, match)
                 matched += 1
         return matched, total
 
 def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     threshold_num = 100
-    split_sizes =  torch.tensor([2,3,4,5,6,7], dtype=torch.int8)
+    split_sizes =  torch.tensor([2,3,4,5], dtype=torch.int8)
     thresholds = torch.linspace(0.01, 0.8, threshold_num)
     tranco_list = kwargs.get('real_domains', Path(r'data/top-1m.csv'))
     real_domains = pd.read_csv(tranco_list).to_numpy()[:,1]
@@ -95,23 +97,24 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     ) STRICT;
     ''')
     conn.commit()
+    conn.close()
     for size in split_sizes:
         training_path = model_path / domain_name / str(int(size.item()))
         train_multi(dataset, training_path, splits=size)
         for threshold in thresholds:
-            print(f"Evaluation for threshold={threshold}, split size: {size}")
-            regex, regex_list = build_regex(dataset, training_path, heuristic=Threshold(threshold=threshold.item(), max_depth=int(size.item())))
-            print(regex)
-            print('\t'.join(regex_list))
-            with dataset.open() as ds:
-                TP, total_dga = test_regex(map(lambda l: l.strip('\n'), ds.readlines()), regex)
-                FP, total_domains = test_regex(real_domains, regex)
-                conn.execute('''
-                INSERT INTO results (domain_name, threshold, split_size, true_positives, DGA_total, false_positives, real_domain_total, regex, regex_parts)
-                VALUES (?,?,?,?,?,?,?,?,?)
-                ''', (domain_name, threshold.item(), size.item(), TP, total_dga, FP, total_domains, regex, '\t'.join(regex_list)))
-                conn.commit()
-    conn.close()
+            with sqlite3.connect('results.db') as conn:
+                print(f"Evaluation for threshold={threshold}, split size: {size}")
+                regex, regex_list = build_regex(dataset, training_path, heuristic=Threshold(threshold=threshold.item(), max_depth=int(size.item())))
+                print(regex)
+                print('\t'.join(regex_list))
+                with dataset.open() as ds:
+                    TP, total_dga = test_regex(map(lambda l: l.strip('\n'), ds.readlines()), regex)
+                    FP, total_domains = test_regex(real_domains, regex)
+                    conn.execute('''
+                    INSERT INTO results (domain_name, threshold, split_size, true_positives, DGA_total, false_positives, real_domain_total, regex, regex_parts)
+                    VALUES (?,?,?,?,?,?,?,?,?)
+                    ''', (domain_name, threshold.item(), size.item(), TP, total_dga, FP, total_domains, regex, '\t'.join(regex_list)))
+                    conn.commit()
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run this main file to generate a regular expression from a Language Model.')
     parser.add_argument("--steps", help="which additional steps should the program do in this run.", action='append', choices=['gen-dataset', 'train-models', 'test-regex', 'evaluate'])
@@ -139,14 +142,13 @@ if __name__ == "__main__":
             data_path.mkdir(exist_ok=True, parents=True)
         if not data_path.is_dir():
             raise Exception('The data path must be a directory')
-        func = domain_gen.IND2FUN[4]
-        #for func in choices:
-        dataset_path = arguments.data / (func.__name__ + '.txt')
-        gen_dataset(func, count=100_000, store_path=dataset_path)
-        evaluation(dataset=dataset_path,
-                   model_path=arguments.model_path,
-                   domain_name=func.__name__
-                   )
+        for func in choices:
+            dataset_path = arguments.data / (func.__name__ + '.txt')
+            gen_dataset(func, count=100_000, store_path=dataset_path)
+            evaluation(dataset=dataset_path,
+                       model_path=arguments.model_path,
+                       domain_name=func.__name__
+                       )
     else:
         if dataset_gen_flag:
             func = getattr(domain_gen, arguments.domain_generator)
@@ -156,5 +158,9 @@ if __name__ == "__main__":
         if test_regex_flag:
             with arguments.data.open() as f:
                 lines = f.readlines()
-                regex = test_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path)
+                regex, regex_parts = build_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path)
+                for part in regex_parts:
+                    matched, total = test_regex(list(map(lambda l: l.strip('\n'), lines)), part)
+                    print(f"Success Rate: {matched/total}")
+                    print(f"RegEx part: {part}")
 
