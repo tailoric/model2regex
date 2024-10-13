@@ -97,16 +97,16 @@ class DFA:
         while nodes_to_visit:
             node_id, data = nodes_to_visit.pop(0)
             depth = data.get('depth')
-            root_path_symbols = [choice(data.get('item')) if data.get('type') == 'group' else data.get('item')]
+            root_path_symbols = [choice(data.get('item')).replace('\\','') if data.get('type') == 'group' else data.get('item').replace('\\','')]
             parent  = list(self.graph.predecessors(node_id))
             while parent:
                 parent_node: Node = self.graph.nodes[parent[0]]
                 if parent_node['type'] in ('simple','root'):
-                    root_path_symbols.append(parent_node.get('item'))
+                    root_path_symbols.append(parent_node.get('item').replace('\\',''))
                 elif parent_node['type'] == 'group':
-                    root_path_symbols.append(choice(parent_node.get('item')))
+                    root_path_symbols.append(choice(parent_node.get('item')).replace('\\',''))
                 elif parent_node['type'] == 'all':
-                    root_path_symbols.append(choice(set(char_map._dict.keys) - set(parent_node.get('exceptions'))))
+                    root_path_symbols.append(choice(set(char_map._dict.keys) - set(parent_node.get('exceptions'))).replace('\\', ''))
                     break
                 parent: list[int] = list(self.graph.predecessors(parent[0]))
             starter = "".join(reversed(root_path_symbols))
