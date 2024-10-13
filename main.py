@@ -44,11 +44,11 @@ def build_regex(dataset: Path, model_path: Path, **kwargs) -> tuple[str,list[str
     visualize = kwargs.get('visualize', False)
     regex_list = []
     max_depth = kwargs.get('max_depth', 4)
-    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.6, max_depth=4))
+    heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.6, max_depth=max_depth))
     for num, model_path in enumerate(sorted(model_path.iterdir()), start=1):
         model.load_state_dict(torch.load(model_path, map_location=device))
         dfa = DFA(model, heuristic=heuristic)
-        dfa.build_tree(max_depth=heuristic.max_depth)
+        dfa.build_tree(max_depth=max_depth)
         if visualize:
             dfa.visualize_tree(graphing_path/f'dfa-{num}.svg', open_file=True)
         dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
@@ -67,9 +67,8 @@ def test_regex(dataset: Iterable[str], regex:str):
         pattern = re.compile(regex)
         for data in dataset:
             total += 1
-            match = pattern.search(data)
+            match = pattern.fullmatch(data)
             if match:
-                print(data, match)
                 matched += 1
         return matched, total
 
@@ -100,9 +99,10 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     conn.close()
     for size in split_sizes:
         training_path = model_path / domain_name / str(int(size.item()))
-        train_multi(dataset, training_path, splits=size)
+        if not (training_path.exists() and training_path.glob("model-dataset-no-*")):
+            train_multi(dataset, training_path, splits=size)
         for threshold in thresholds:
-            with sqlite3.connect('results.db') as conn:
+            with sqlite3.connect('results_test.db') as conn:
                 print(f"Evaluation for threshold={threshold}, split size: {size}")
                 regex, regex_list = build_regex(dataset, training_path, heuristic=Threshold(threshold=threshold.item(), max_depth=int(size.item())))
                 print(regex)
@@ -120,6 +120,8 @@ if __name__ == "__main__":
     parser.add_argument("--steps", help="which additional steps should the program do in this run.", action='append', choices=['gen-dataset', 'train-models', 'test-regex', 'evaluate'])
     dataset_group = parser.add_argument_group("dataset", "options for when gen-dataset was added as extra step")
     parser.add_argument('--model-path', type=Path, help="Path where the generated models should be stored if train-models was chosen otherwise the directory that will get read for the models.", required=True)
+    parser.add_argument('--split-size', type=int, help="The sizes of chunks the model should be split into", default=4)
+    parser.add_argument('--threshold', type=float, help="The thresholding of the heuristic", default=0.4)
     dataset_group.add_argument('--domain-generator', help="The generator function to use from domain_gen", choices=[func.__name__ for func in choices])
     dataset_group.add_argument('--store-dataset', action='store_true', help="Set this to specify that the dataset should be stored after generating it.")
     dataset_group.add_argument('--count', type=int, default=100000, help="The amount of entries to create when generating the data.")
@@ -154,13 +156,13 @@ if __name__ == "__main__":
             func = getattr(domain_gen, arguments.domain_generator)
             gen_dataset(func, arguments.count, store_path=arguments.data)
         if train_model_flag:
-            train_multi(arguments.data, arguments.model_path, device=arguments.device)
+            train_multi(arguments.data, arguments.model_path, device=arguments.device, splits=arguments.split_size)
         if test_regex_flag:
             with arguments.data.open() as f:
                 lines = f.readlines()
-                regex, regex_parts = build_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path)
+                threshold = Threshold(threshold=arguments.threshold, max_depth=arguments.split_size)
+                regex, regex_parts = build_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path, heuristic=threshold, max_depth=5)
                 for part in regex_parts:
                     matched, total = test_regex(list(map(lambda l: l.strip('\n'), lines)), part)
                     print(f"Success Rate: {matched/total}")
                     print(f"RegEx part: {part}")
-
