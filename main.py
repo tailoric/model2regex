@@ -26,7 +26,7 @@ def train_multi(data: Path, model_path: Path, **kwargs):
     with data.open() as ds:
         dataset_table = defaultdict(list)
         while line := ds.readline():
-            splits = [''.join(batch) for batch in batched(line[:-1], n=split_size)]
+            splits = [''.join(batch) for batch in batched(line.replace('\n',''), n=split_size)]
             for idx, split in enumerate(splits):
                 dataset_table[idx].append(split or '')
         
