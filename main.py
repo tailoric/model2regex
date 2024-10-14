@@ -36,14 +36,13 @@ def train_multi(data: Path, model_path: Path, **kwargs):
         trainer.multi_train(datasets)
         return trainer
 
-def build_regex(dataset: Path, model_path: Path, **kwargs) -> tuple[str,list[str]]:
+def build_regex(dataset: Path, model_path: Path, max_depth: int, **kwargs) -> tuple[str,list[str]]:
     device = kwargs.get('device', 'cuda:0')
     model = DGAClassifier(**DEFAULT_MODEL_SETTINGS,classify=False, device=device)
     model.to(device)
     graphing_path = kwargs.get('graphing_path', Path('graphs'))
     visualize = kwargs.get('visualize', False)
     regex_list = []
-    max_depth = kwargs.get('max_depth', 4)
     heuristic : Heuristic = kwargs.get('heuristic', Threshold(threshold=0.6, max_depth=max_depth))
     for num, model_path in enumerate(sorted(model_path.iterdir()), start=1):
         model.load_state_dict(torch.load(model_path, map_location=device))
@@ -99,12 +98,11 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     conn.close()
     for size in split_sizes:
         training_path = model_path / domain_name / str(int(size.item()))
-        if not (training_path.exists() and training_path.glob("model-dataset-no-*")):
-            train_multi(dataset, training_path, splits=size)
+        train_multi(dataset, training_path, splits=size)
         for threshold in thresholds:
-            with sqlite3.connect('results_test.db') as conn:
+            with sqlite3.connect('results.db') as conn:
                 print(f"Evaluation for threshold={threshold}, split size: {size}")
-                regex, regex_list = build_regex(dataset, training_path, heuristic=Threshold(threshold=threshold.item(), max_depth=int(size.item())))
+                regex, regex_list = build_regex(dataset, training_path, heuristic=Threshold(threshold=threshold.item(), max_depth=int(size.item())), max_depth=int(size.item()))
                 print(regex)
                 print('\t'.join(regex_list))
                 with dataset.open() as ds:
