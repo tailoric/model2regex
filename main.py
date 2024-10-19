@@ -82,7 +82,7 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     PRAGMA journal_mode=WAL;
     ''')
     conn.execute('''
-    CREATE TABLE IF NOT EXISTS results(
+    CREATE TABLE IF NOT EXISTS results_no_kl(
         domain_name TEXT,
         threshold REAL,
         split_size INTEGER,

@@ -238,9 +238,7 @@ class DFA:
                 parent, siblings = self.get_siblings(node)
                 if not siblings:
                     continue
-                edge_probabilities = [self.graph.edges[parent, sibling]['probability'] for sibling in siblings]
-                if self._is_uniformly_distributed(edge_probabilities):
-                    self.merge_siblings(siblings, parent)
+                self.merge_siblings(siblings, parent)
 
     def load_file(self, file_path: Path | None):
         """

@@ -4,9 +4,6 @@ import argparse
 
 from . import exrex
 
-def generate_example_url():
-    return exrex.getone(r'[a-c]{4}')
-
 def generate_url_scheme_1():
     return exrex.getone(r'[a-c]{2}[ab]{2}-domain\.com')
 
