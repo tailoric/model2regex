@@ -78,7 +78,7 @@ class ModelTrainer:
             self.model.load_state_dict(state_dict=untrained_model)
             loader = DataLoader(dataset=data, batch_size=1000)
             self.train_fold(loader)
-            torch.save(self.model.state_dict(), self.models_path / f'model-dataset-no-{number}.pth')
+            torch.save(self.model.state_dict(), self.models_path / f'model-dataset-no-{number:03d}.pth')
 
     def train(self, *, folds=5, epochs=3, save_model=True):
         """

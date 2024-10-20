@@ -21,8 +21,14 @@ def statefulExreg():
     else:
         return exrex.getone(r'[0-9]{5}\.knievel\.[a-c]{3,4}\.com')
 
+def statefulExregSameLength():
+    if random.random() <= 0.5:
+        return exrex.getone(r'[0-9]{5}\.evil\.[a-c]{4}\.com')
+    else:
+        return exrex.getone(r'[0-9]{3}\.knievel\.[a-c]{3}\.com')
+
 IND2FUN = {1: generate_url_scheme_1, 2: generate_url_scheme_2,
-           3: simpleExreg, 4: statefulExreg, 5: generate_example_url}
+           3: simpleExreg, 4: statefulExreg, 5: statefulExregSameLength}
 
 def main():
     schemes = sorted(IND2FUN.keys())
