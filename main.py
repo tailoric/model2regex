@@ -109,7 +109,7 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
                     TP, total_dga = test_regex(map(lambda l: l.strip('\n'), ds.readlines()), regex)
                     FP, total_domains = test_regex(real_domains, regex)
                     conn.execute('''
-                    INSERT INTO results (domain_name, threshold, split_size, true_positives, DGA_total, false_positives, real_domain_total, regex, regex_parts)
+                    INSERT INTO results_no_kl (domain_name, threshold, split_size, true_positives, DGA_total, false_positives, real_domain_total, regex, regex_parts)
                     VALUES (?,?,?,?,?,?,?,?,?)
                     ''', (domain_name, threshold.item(), size.item(), TP, total_dga, FP, total_domains, regex, '\t'.join(regex_list)))
                     conn.commit()
