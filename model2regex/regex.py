@@ -160,12 +160,12 @@ class DFA:
 
         if store:
             self.save_file()
-    def simplify_tree(self, iterations:int = 5):
+    def simplify_tree(self, iterations:int = 5, check_for_uniform=True):
         graph_hash = nx.weisfeiler_lehman_graph_hash(self.graph, node_attr='item')
         for _ in range(iterations):
             layers = nx.bfs_layers(self.graph, 0)
             layers = reversed(list(layers))
-            self._simplify_iteration(layers)
+            self._simplify_iteration(layers, check_for_uniform=check_for_uniform)
             new_hash = nx.weisfeiler_lehman_graph_hash(self.graph, node_attr='item')
             if graph_hash == new_hash:
                 return
@@ -230,7 +230,7 @@ class DFA:
             self.merge_same_children(node)
 
 
-    def _simplify_iteration(self, layers):
+    def _simplify_iteration(self, layers, check_for_uniform = True):
         for layer in layers:
             for node in layer:
                 if node not in self.graph:
@@ -238,7 +238,12 @@ class DFA:
                 parent, siblings = self.get_siblings(node)
                 if not siblings:
                     continue
-                self.merge_siblings(siblings, parent)
+                edge_probabilities = [self.graph.edges[parent, sibling]['probability'] for sibling in siblings]
+                if check_for_uniform:
+                    if self._is_uniformly_distributed(edge_probabilities):
+                        self.merge_siblings(siblings, parent)
+                else:
+                    self.merge_siblings(siblings, parent)
 
     def load_file(self, file_path: Path | None):
         """
