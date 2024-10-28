@@ -100,9 +100,10 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     split_sizes =  torch.tensor([2,3,4,5], dtype=torch.int8)
     thresholds = torch.linspace(0.01, 0.8, threshold_num)
     tranco_list = kwargs.get('real_domains', Path(r'data/top-1m.csv'))
+
     real_domains = pd.read_csv(tranco_list).to_numpy()[:,1]
-    run_id = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-    db_file = Path(f"results_{run_id}.db")
+    run_id = kwargs.get('run_id', int(time.time()))
+    db_file = kwargs.get('db_file', Path(f"results.db"))
     conn = sqlite3.connect(db_file)
     conn.row_factory = sqlite3.Row
     conn.execute('''
@@ -210,12 +211,16 @@ if __name__ == "__main__":
             data_path.mkdir(exist_ok=True, parents=True)
         if not data_path.is_dir():
             raise Exception('The data path must be a directory')
+        run_id = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        db_file = Path(f"results_{run_id}.db")
         for func in choices:
             dataset_path = arguments.data / (func.__name__ + '.txt')
             gen_dataset(func, count=100_000, store_path=dataset_path)
             evaluation(dataset=dataset_path,
                        model_path=arguments.model_path,
-                       domain_name=func.__name__
+                       domain_name=func.__name__,
+                       run_id=run_id,
+                       db_file=db_file
                        )
     else:
         if dataset_gen_flag:
