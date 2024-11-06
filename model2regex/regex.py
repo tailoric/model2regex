@@ -289,6 +289,8 @@ class DFA:
         """
         build a regex from the current DFA tree.
         """
+        if all(n[1] == "." for n in self.graph.nodes(data='item') if n[0] != 0):
+            return r".*"
         return f"({self._build_from_subgraph(self.graph, 0)})"
 
     def _build_from_subgraph(self, subgraph, source) -> str:

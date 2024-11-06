@@ -12,6 +12,11 @@ import pandas as pd
 import datetime
 import time
 
+import random
+import torch
+import numpy as np
+
+
 choices: Sequence[Callable] = [func for func in domain_gen.IND2FUN.values()]
 
 class StopWatch:
@@ -98,7 +103,7 @@ def test_regex(dataset: Iterable[str], regex:str):
 def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     threshold_num = 100
     split_sizes =  torch.tensor([2,3,4,5], dtype=torch.int8)
-    thresholds = torch.linspace(0.01, 0.8, threshold_num)
+    thresholds = torch.linspace(0.01, 1.0, threshold_num)
     tranco_list = kwargs.get('real_domains', Path(r'data/top-1m.csv'))
 
     real_domains = pd.read_csv(tranco_list).to_numpy()[:,1]
@@ -140,6 +145,8 @@ def evaluation(dataset: Path, model_path: Path, domain_name: str, **kwargs):
     conn.commit()
     conn.close()
     for size in split_sizes:
+        if size >= 5 and domain_name == 'simpleExreg':
+            continue
         training_path = model_path / domain_name / str(int(size.item()))
         train_multi(dataset, training_path, splits=size)
         for threshold in thresholds:
@@ -211,17 +218,21 @@ if __name__ == "__main__":
             data_path.mkdir(exist_ok=True, parents=True)
         if not data_path.is_dir():
             raise Exception('The data path must be a directory')
-        run_id = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-        db_file = Path(f"results_{run_id}.db")
         for func in choices:
-            dataset_path = arguments.data / (func.__name__ + '.txt')
-            gen_dataset(func, count=100_000, store_path=dataset_path)
-            evaluation(dataset=dataset_path,
-                       model_path=arguments.model_path,
-                       domain_name=func.__name__,
-                       run_id=run_id,
-                       db_file=db_file
-                       )
+            for i in range(10):
+                random.seed(0)
+                torch.manual_seed(i)
+                np.random.seed(i)
+                run_id = int(time.time())
+                db_file = Path(f"results.db")
+                dataset_path = arguments.data / (func.__name__ + str(int(time.time())) + '.txt')
+                gen_dataset(func, count=100_000, store_path=dataset_path)
+                evaluation(dataset=dataset_path,
+                           model_path=arguments.model_path,
+                           domain_name=func.__name__,
+                           run_id=run_id,
+                           db_file=db_file,
+                           )
     else:
         if dataset_gen_flag:
             func = getattr(domain_gen, arguments.domain_generator)
@@ -232,7 +243,7 @@ if __name__ == "__main__":
             with arguments.data.open() as f:
                 lines = f.readlines()
                 threshold = Threshold(threshold=arguments.threshold, max_depth=arguments.split_size)
-                regex, regex_parts = build_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path, heuristic=threshold, max_depth=arguments.split_size, visualize=True, graphing_path=Path(f'graphs') / arguments.model_path / str(arguments.threshold).replace(".", "_"))
+                regex, regex_parts = build_regex(map(lambda l: l.strip('\n'), lines), arguments.model_path, heuristic=threshold, max_depth=arguments.split_size, visualize=True, graphing_path=Path(f'graphs') / arguments.model_path / str(arguments.threshold).replace(".", "_"), check_for_uniform=True)
                 matched, total = test_regex(list(map(lambda l: l.strip('\n'), lines)), regex)
                 print(f"Success Rate: {matched/total}")
                 print(f"RegEx part: {regex}")
