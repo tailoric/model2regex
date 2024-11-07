@@ -75,7 +75,7 @@ def build_regex(dataset: Path, model_path: Path, max_depth: int, check_for_unifo
         if visualize:
             graphing_path.mkdir(exist_ok=True, parents=True)
             dfa.visualize_tree(graphing_path/f'dfa-{num}.svg', open_file=True)
-        dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
+        #dfa.save_file(Path(graphing_path / f'dfa-{num}.gml.gz'))
         if stop_watch:
             stop_watch.start()
         dfa.simplify_tree(check_for_uniform=check_for_uniform)
@@ -83,10 +83,14 @@ def build_regex(dataset: Path, model_path: Path, max_depth: int, check_for_unifo
             stop_watch.record_time(label="simplify_build_time_seconds")
         if visualize:
             dfa.visualize_tree(graphing_path/f'dfa-{num}-simplified.svg', open_file=True)
+        
         regex = dfa.build_regex()
         dfa.save_file(Path(graphing_path / f'dfa-{num}-simple.gml.gz'))
         regex_list.append(regex)
-    final_regex = ''.join(regex_list)
+    if all(r == f'({"." * max_depth})' for r in regex_list):
+        final_regex = r".*"
+    else:
+        final_regex = ''.join(regex_list)
     return final_regex, regex_list
 
 def test_regex(dataset: Iterable[str], regex:str):
