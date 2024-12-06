@@ -222,22 +222,21 @@ if __name__ == "__main__":
             data_path.mkdir(exist_ok=True, parents=True)
         if not data_path.is_dir():
             raise Exception('The data path must be a directory')
-
-        #for func in choices:
-        for i in range(10):
-            random.seed(0)
-            torch.manual_seed(i)
-            np.random.seed(i)
-            run_id = int(time.time())
-            db_file = Path(f"results.db")
-            dataset_path = arguments.data / 'banjori.txt'
-            #gen_dataset(func, count=100_000, store_path=dataset_path)
-            evaluation(dataset=dataset_path,
-                       model_path=arguments.model_path,
-                       domain_name="banjori",
-                       run_id=run_id,
-                       db_file=db_file,
-                       )
+        for func in choices:
+            for i in range(10):
+                random.seed(0)
+                torch.manual_seed(i)
+                np.random.seed(i)
+                run_id = int(time.time())
+                db_file = Path(f"results.db")
+                dataset_path = arguments.data / (func.__name__ + str(int(time.time())) + '.txt')
+                gen_dataset(func, count=100_000, store_path=dataset_path)
+                evaluation(dataset=dataset_path,
+                           model_path=arguments.model_path,
+                           domain_name=func.__name__,
+                           run_id=run_id,
+                           db_file=db_file,
+                           )
     else:
         if dataset_gen_flag:
             func = getattr(domain_gen, arguments.domain_generator)
